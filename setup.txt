@@ -1,0 +1,390 @@
+
+#######################################################
+
+mkdir /root/.openshift/
+
+## copy secret from redhat (login redhat )
+## https://cloud.redhat.com/openshift/install/pull-secret
+vi /root/.openshift/pull-secret.json
+
+
+#########################################################
+## online
+export DOMAIN=cheers.local
+export CLUSTERID=ocpuat
+export VCENTER_SERVER=192.168.1.9
+export VCENTER_USER="administrator@vsphere.cheers.local"
+export VCENTER_PASS='P@ssw0rd'
+export VCENTER_DC=Datacenter
+export VCENTER_DS=datastore2
+export POD_NETWORK="10.254.0.0/16"
+export SVC_NETWORK="172.30.0.0/16"
+export PULL_SECRET=$(cat /root/.openshift/pull-secret.json)
+export OCP_SSH_KEY=$(cat /root/.ssh/id_rsa.pub)
+
+
+
+cat <<EOF > install-config.yaml
+apiVersion: v1
+baseDomain: ${DOMAIN}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 0
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 3
+metadata:
+  name: ${CLUSTERID}
+networking:
+  clusterNetworks:
+  - cidr: ${POD_NETWORK}
+    hostPrefix: 24
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - ${SVC_NETWORK}
+platform:
+  vsphere:
+    vcenter: ${VCENTER_SERVER}
+    username: ${VCENTER_USER}
+    password: ${VCENTER_PASS}
+    datacenter: ${VCENTER_DC}
+    defaultDatastore: ${VCENTER_DS}
+pullSecret: '${PULL_SECRET}'
+sshKey: '${OCP_SSH_KEY}'
+EOF
+
+
+mkdir ${CLUSTERID}
+cp install-config.yaml ~/${CLUSTERID}/install-config.yaml
+
+cd ~/${CLUSTERID}/
+
+openshift-install create manifests
+
+sed -i 's/mastersSchedulable: true/mastersSchedulable: false/g' manifests/cluster-scheduler-02-config.yml
+
+
+cat <<EOF > ~/ocp43/manifests/cluster-network-03-config.yml
+apiVersion: operator.openshift.io/v1
+kind: Network
+metadata:
+  name: ${CLUSTERID}
+spec:
+  clusterNetwork:
+  - cidr: ${POD_NETWORK}
+    hostPrefix: 23
+  serviceNetwork:
+  - ${SVC_NETWORK}
+  defaultNetwork:
+    type: OpenShiftSDN
+    openshiftSDNConfig:
+      mode: Multitenant
+      mtu: 1450
+      vxlanPort: 6789
+  kubeProxyConfig:
+    iptablesSyncPeriod: 30s
+    proxyArguments:
+      iptables-min-sync-period:
+      - 30s
+EOF
+
+openshift-install create ignition-configs
+
+mkdir /var/www/html/ignition
+cp bootstrap.ign /var/www/html/ignition/
+
+cp *.ign /var/www/html/ignition/
+
+############## vsphere install only ############################
+cat <<EOF > append-bootstrap.ign
+{
+  "ignition": {
+    "config": {
+      "append": [
+        {
+          "source": "http://192.168.1.30/ignition/bootstrap.ign",
+          "verification": {}
+        }
+      ]
+    },
+    "timeouts": {},
+    "version": "2.1.0"
+  },
+  "networkd": {},
+  "passwd": {},
+  "storage": {},
+  "systemd": {}
+}
+EOF
+
+base64 -w0 append-bootstrap.ign > append-bootstrap.64
+base64 -w0 master.ign > master.64
+base64 -w0 worker.ign > worker.64
+
+## prepare the VMs
+
+guestinfo.ignition.config.data
+guestinfo.ignition.config.data.encoding        base64
+disk.EnableUUID    TRUE
+
+############## vsphere install only ############################
+
+
+############## PIX install only ############################
+## use static IP
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/bootstrap.ign 
+ip=192.168.1.150::192.168.1.1:255.255.255.0:ocp4bstrap.cheers.local:ens192:none nameserver=192.168.1.5
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
+ip=192.168.1.151::192.168.1.1:255.255.255.0:ocp4cp01.cheers.local:ens192:none nameserver=192.168.1.5
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
+ip=192.168.1.152::192.168.1.1:255.255.255.0:ocp4cp02.cheers.local:ens192:none nameserver=192.168.1.5
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
+ip=192.168.1.153::192.168.1.1:255.255.255.0:ocp4cp03.cheers.local:ens192:none nameserver=192.168.1.5
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/worker.ign 
+ip=192.168.1.154::192.168.1.1:255.255.255.0:ocp4worker01.cheers.local:ens192:none nameserver=192.168.1.5
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
+ip=192.168.1.155::192.168.1.1:255.255.255.0:ocp4worker02.cheers.local:ens192:none nameserver=192.168.1.5
+
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
+ip=192.168.1.156::192.168.1.1:255.255.255.0:ocp4worker03.cheers.local:ens192:none nameserver=192.168.1.5
+
+
+############## PIX install only ############################
+
+openssl s_client -connect api.ocp4.cheers.local:6443 | openssl x509 -noout -dates
+
+openshift-install wait-for bootstrap-complete --log-level debug
+
+
+[root@bastionocp4 ocp43]# openshift-install wait-for bootstrap-complete --log-level debug
+DEBUG OpenShift Installer v4.2.0                   
+DEBUG Built from commit 90ccb37ac1f85ae811c50a29f9bb7e779c5045fb 
+INFO Waiting up to 30m0s for the Kubernetes API at https://api.ocp4.cheers.local:6443... 
+DEBUG Still waiting for the Kubernetes API: the server could not find the requested resource 
+DEBUG Still waiting for the Kubernetes API: the server could not find the requested resource 
+DEBUG Still waiting for the Kubernetes API: the server could not find the requested resource 
+DEBUG Still waiting for the Kubernetes API: Get https://api.ocp4.cheers.local:6443/version?timeout=32s: EOF 
+DEBUG Still waiting for the Kubernetes API: Get https://api.ocp4.cheers.local:6443/version?timeout=32s: EOF 
+INFO API v1.14.6+2e5ed54 up                       
+INFO Waiting up to 30m0s for bootstrapping to complete... 
+DEBUG Bootstrap status: complete                   
+INFO It is now safe to remove the bootstrap resources 
+
+
+
+
+export KUBECONFIG=/root/ocp43/auth/kubeconfig
+
+
+# check for pending
+oc get csr
+
+oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
+
+
+### registry
+##To start the image registry, you must change ManagementState Image Registry Operator configuration from Removed to Managed.
+## registry without persistent
+oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"emptyDir":{}}}}'
+
+oc edit configs.imageregistry.operator.openshift.io
+...
+storage:
+  pvc:
+    claim:
+...
+
+watch oc get clusteroperator
+
+openshift-install wait-for install-complete
+
+[root@bastionocp4 ~]# cd ocp43/
+[root@bastionocp4 ocp43]# openshift-install wait-for install-complete
+INFO Waiting up to 30m0s for the cluster at https://api.ocp4.cheers.local:6443 to initialize... 
+INFO Waiting up to 10m0s for the openshift-console route to be created... 
+INFO Install complete!                            
+INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/root/ocp43/auth/kubeconfig' 
+INFO Access the OpenShift web-console here: https://console-openshift-console.apps.ocp4.cheers.local 
+INFO Login to the console with user: kubeadmin, password: UArrk-FiHZG-oSmox-HJxXE 
+
+
+## create htpasswd credential
+htpasswd -c -B -b ~/users.htpasswd admin redhat123
+
+oc create secret generic htpass-secret --from-file=htpasswd=/root/users.htpasswd -n openshift-config
+
+cat <<EOF > htpasswd.yaml
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: my_htpasswd_provider 
+    mappingMethod: claim 
+    type: HTPasswd
+    htpasswd:
+      fileData:
+        name: htpass-secret
+EOF
+
+oc apply -f htpasswd.yaml
+
+oc adm policy add-cluster-role-to-user cluster-admin admin
+
+
+[root@bastionocp4 ocp43]# openshift-install wait-for install-complete
+INFO Waiting up to 30m0s for the cluster at https://api.ocp4.cheers.local:6443 to initialize... 
+INFO Waiting up to 10m0s for the openshift-console route to be created... 
+INFO Install complete!                            
+INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/root/ocp43/auth/kubeconfig' 
+INFO Access the OpenShift web-console here: https://console-openshift-console.apps.ocp4.cheers.local 
+INFO Login to the console with user: kubeadmin, password: BCXCW-LGJdC-KTGCd-8Q9fS 
+
+
+
+openshift-insights pod
+
+Node-Selectors:  beta.kubernetes.io/os=linux
+                 node-role.kubernetes.io/master=
+
+
+oc new-project <project> --as=<user> --as-group=system:authenticated --as-group=system:authenticated:oauth
+
+
+https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-restricted-networks-preparations.html
+
+###################### nfs ######################
+mkdir -p /exports/nfs
+chown -R nfsnobody:nfsnobody /exports/nfs
+chmod 777 -R /exports/nfs
+
+https://docs.openshift.com/container-platform/4.3/storage/persistent_storage/persistent-storage-nfs.html
+/<example_fs> *(rw,root_squash)
+
+####################### host nfs
+oc new-project nfs
+mkdir -p /srv  #on target server
+git clone https://github.com/kubernetes-incubator/external-storage.git
+cd external-storage/nfs
+kubectl create -f deploy/kubernetes/deployment.yaml
+kubectl create -f deploy/kubernetes/class.yaml
+oc adm policy add-scc-to-user privileged -z nfs-provisioner -n nfs
+oc adm policy add-cluster-role-to-user cluster-admin system:serviceaccount:nfs:nfs-provisioner
+
+oc patch storageclass example-nfs -p '{"metadata":{"annotations":{"storageclass.beta.kubernetes.io/is-default-class":"true"}}}'
+
+######################## remote nfs
+git clone https://github.com/kubernetes-incubator/external-storage.git
+cd external-storage/nfs-client/
+
+oc new-project nfs
+NAMESPACE=`oc project -q`
+sed -i'' "s/namespace:.*/namespace: $NAMESPACE/g" ./deploy/rbac.yaml
+oc create -f deploy/rbac.yaml
+oc adm policy add-scc-to-user hostmount-anyuid system:serviceaccount:$NAMESPACE:nfs-client-provisioner -n nfs
+
+#update the namespace in deploy/class.yaml deploy/deployment.yaml
+oc create -f deploy/class.yaml
+oc create -f deploy/deployment.yaml
+
+
+## storageclass
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: managed-nfs-storage
+  annotations:
+    storageclass.kubernetes.io/is-default-class: 'true'
+provisioner: fuseim.pri/ifs
+parameters:
+  archiveOnDelete: 'false'
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+
+
+#########################
+
+MIRROR_ADDR=registry.ocp4.cheers.local:5000
+export LOCAL_SECRET_JSON='/root/.openshift/pull-secret.json' 
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/rhscl/php-71-rhel7:latest ${MIRROR_ADDR}/rhscl/php-71-rhel7:latest
+
+oc create configmap registry-config --from-file=MIRROR_ADDR=/opt/registry/certs/domain.crt -n openshift-config
+oc patch image.config.openshift.io/cluster --patch '{"spec":{"additionalTrustedCA":{"name":"registry-config"}}}' --type=merge
+
+
+### configure the samples registry target ###
+oc edit configs.samples.operator.openshift.io/cluster 
+
+apiVersion: samples.operator.openshift.io/v1
+kind: Config
+metadata:
+  finalizers:
+  - samples.operator.openshift.io/finalizer
+  name: cluster
+spec:
+  architectures:
+  - x86_64
+  managementState: Managed
+  samplesRegistry: registry.ocp4.cheers.local:5000
+
+
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/rhscl/mariadb-102-rhel7:latest ${MIRROR_ADDR}/rhscl/mariadb-102-rhel7:latest
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/rhscl/mysql-57-rhel7:latest ${MIRROR_ADDR}/rhscl/mysql-57-rhel7:latest
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/jboss-eap-7/eap72-openshift:1.0 ${MIRROR_ADDR}/jboss-eap-7/eap72-openshift:1.0
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/jboss-eap-7/eap72-openshift:1.1 ${MIRROR_ADDR}/jboss-eap-7/eap72-openshift:1.1
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/jboss-eap-7/eap72-openshift:latest ${MIRROR_ADDR}/jboss-eap-7/eap72-openshift:latest
+
+oc image mirror -a ${LOCAL_SECRET_JSON} registry.redhat.io/rhscl/httpd-24-rhel7 ${MIRROR_ADDR}/rhscl/httpd-24-rhel7
+
+oc tag httpd:2.4 -d -n openshift
+oc import-image httpd:2.4 --from=${MIRROR_ADDR}/rhscl/httpd-24-rhel7:latest -n openshift
+
+
+###################################
+Error from server: error dialing backend: remote error: tls: internal error
+https://access.redhat.com/solutions/4307511
+
+$ oc get csr -o name | xargs oc adm certificate approve
+
+
+#############################
+## access image registry 
+
+oc patch configs.imageregistry.operator.openshift.io/cluster --type merge -p '{"spec":{"defaultRoute":true}}'
+
+oc login -u kubeadmin -p BCXCW-LGJdC-KTGCd-8Q9fS
+
+HOST=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}')
+podman login -u kubeadmin -p $(oc whoami -t) --tls-verify=false $HOST 
+
+
