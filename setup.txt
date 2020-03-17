@@ -40,7 +40,7 @@ metadata:
 networking:
   clusterNetworks:
   - cidr: ${POD_NETWORK}
-    hostPrefix: 24
+    hostPrefix: 23
   networkType: OpenShiftSDN
   serviceNetwork:
   - ${SVC_NETWORK}
