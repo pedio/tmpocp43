@@ -1,6 +1,16 @@
 
 #######################################################
+# http server for rhcos 4.3.0 metal.raw.gz and ignition files
+# temporarily for install or add node use (can stop after install)
+# 
+yum install -y httpd wget bind-utils net-tools
+systemctl start httpd
 
+mkdir /var/www/html/{ignition,install}
+
+wget -P /var/www/html/install/ https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.3/4.3.0/rhcos-4.3.0-x86_64-metal.raw.gz
+
+#######################################################
 mkdir /root/.openshift/
 
 ## copy secret from redhat (login redhat )
@@ -21,7 +31,6 @@ export POD_NETWORK="10.254.0.0/16"
 export SVC_NETWORK="172.30.0.0/16"
 export PULL_SECRET=$(cat /root/.openshift/pull-secret.json)
 export OCP_SSH_KEY=$(cat /root/.ssh/id_rsa.pub)
-
 
 
 cat <<EOF > install-config.yaml
@@ -55,6 +64,10 @@ pullSecret: '${PULL_SECRET}'
 sshKey: '${OCP_SSH_KEY}'
 EOF
 
+## setup install and oc lient
+
+
+
 
 mkdir ${CLUSTERID}
 cp install-config.yaml ~/${CLUSTERID}/install-config.yaml
@@ -64,7 +77,6 @@ cd ~/${CLUSTERID}/
 openshift-install create manifests
 
 sed -i 's/mastersSchedulable: true/mastersSchedulable: false/g' manifests/cluster-scheduler-02-config.yml
-
 
 cat <<EOF > ~/ocp43/manifests/cluster-network-03-config.yml
 apiVersion: operator.openshift.io/v1
@@ -92,12 +104,11 @@ EOF
 
 openshift-install create ignition-configs
 
-mkdir /var/www/html/ignition
 cp bootstrap.ign /var/www/html/ignition/
 
 cp *.ign /var/www/html/ignition/
 
-############## vsphere install only ############################
+############## vsphere with VM ova install only ############################
 cat <<EOF > append-bootstrap.ign
 {
   "ignition": {
@@ -199,11 +210,7 @@ INFO Waiting up to 30m0s for bootstrapping to complete...
 DEBUG Bootstrap status: complete                   
 INFO It is now safe to remove the bootstrap resources 
 
-
-
-
 export KUBECONFIG=/root/ocp43/auth/kubeconfig
-
 
 # check for pending
 oc get csr
