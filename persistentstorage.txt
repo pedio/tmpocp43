@@ -1,0 +1,40 @@
+cat <<EOF > pvname.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  vsphereVolume:
+    volumePath: "[datastore1] /vmfs/volumes/SAS_datastore/OCPUAT/registry.vmdk"
+    fsType: ext4
+EOF
+
+cat <<EOF > pvcname.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc
+  namespace: projectname
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+EOF
+
+
+
+
+
+
+
+
+
+
+
