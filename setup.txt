@@ -10,13 +10,18 @@ mkdir /var/www/html/{ignition,install}
 
 wget -P /var/www/html/install/ https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.3/4.3.0/rhcos-4.3.0-x86_64-metal.raw.gz
 
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.3.5/openshift-client-linux-4.3.5.tar.gz
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.3.5/openshift-install-linux-4.3.5.tar.gz
+
+tar -zxvf openshift-client-linux-4.3.5.tar.gz -C /usr/local/bin
+tar -zxvf openshift-install-linux-4.3.5.tar.gz -C /usr/local/bin
+
 #######################################################
 mkdir /root/.openshift/
 
 ## copy secret from redhat (login redhat )
 ## https://cloud.redhat.com/openshift/install/pull-secret
 vi /root/.openshift/pull-secret.json
-
 
 #########################################################
 ## online
