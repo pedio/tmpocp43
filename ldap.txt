@@ -1,0 +1,37 @@
+ldapsearch -D "xxx" -w Password -p 389 -h 192.168.1.1 -b "OU=Office,DC=xxx,DC=com,DC=hk" -s sub "(&(objectClass=user)(CN=*))" subordinatecount -E pr=10000/noprompt
+
+
+cat <<EOF > clusterproviders.yaml
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: Local
+    mappingMethod: claim
+    type: HTPasswd
+    htpasswd:
+      fileData:
+        name: htpass-secret
+  - name: Windows_AD
+    mappingMethod: claim
+    type: LDAP
+    ldap:
+      attributes:
+        id:
+        - sAMAccountName
+        email:
+        - mail
+        name:
+        - sAMAccountName
+        preferredUsername:
+        - sAMAccountName
+      bindDN: "xxx"
+      bindPassword:
+        name: ldap-secret
+      insecure: true
+      url: "ldap://192.168.1.1/OU=Office,DC=xxx,DC=com,DC=hk?sAMAccountName?sub?(objectClass=user)"
+EOF
+
+oc apply -f clusterproviders.yaml
