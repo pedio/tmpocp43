@@ -1,4 +1,4 @@
-https://cormachogan.com/2019/05/30/kubernetes-storage-on-vsphere-101-the-basics-pv-pvc-pod/
+https://vmware.github.io/vsphere-storage-for-kubernetes/documentation/persistent-vols-claims.html
 https://docs.openshift.com/container-platform/4.3/storage/persistent_storage/persistent-storage-vsphere.html#vsphere-formatting-volumes_persistent-storage-efs
 
 vmkfstools -c 100g /vmfs/volumes/DatastoreName/volumes/registry.vmdk
