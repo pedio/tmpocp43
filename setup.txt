@@ -10,6 +10,12 @@ mkdir /var/www/html/{ignition,install}
 
 wget -P /var/www/html/install/ https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.3/4.3.0/rhcos-4.3.0-x86_64-metal.raw.gz
 
+# rename for easier memorize
+mv /var/www/html/install/rhcos-4.3.0-x86_64-metal.raw.gz /var/www/html/rhcos430metal.raw.gz
+
+chown -R apache:apache /var/www/html
+restorecon -Rv /var/www/html
+
 wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.3.5/openshift-client-linux-4.3.5.tar.gz
 wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.3.5/openshift-install-linux-4.3.5.tar.gz
 
@@ -83,6 +89,7 @@ openshift-install create manifests
 
 sed -i 's/mastersSchedulable: true/mastersSchedulable: false/g' manifests/cluster-scheduler-02-config.yml
 
+## set NetworkPolicy or Multitenant, MTU
 cat <<EOF > ~/ocp43/manifests/cluster-network-03-config.yml
 apiVersion: operator.openshift.io/v1
 kind: Network
@@ -97,7 +104,7 @@ spec:
   defaultNetwork:
     type: OpenShiftSDN
     openshiftSDNConfig:
-      mode: Multitenant
+      mode: NetworkPolicy
       mtu: 1450
       vxlanPort: 6789
   kubeProxyConfig:
@@ -107,13 +114,14 @@ spec:
       - 30s
 EOF
 
+cd ~/${CLUSTERID}/
 openshift-install create ignition-configs
 
 cp bootstrap.ign /var/www/html/ignition/
 
 cp *.ign /var/www/html/ignition/
 
-############## vsphere with VM ova install only ############################
+############## vsphere with VM ova image install only ############################
 cat <<EOF > append-bootstrap.ign
 {
   "ignition": {
@@ -145,7 +153,7 @@ guestinfo.ignition.config.data
 guestinfo.ignition.config.data.encoding        base64
 disk.EnableUUID    TRUE
 
-############## vsphere install only ############################
+############## vsphere with VM ova image install only ############################
 
 
 ############## PIX install only ############################
