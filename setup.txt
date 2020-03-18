@@ -84,7 +84,7 @@ dig *.apps.${CLUSTERID}.${DOMAIN} +short
 dig etd-0.${CLUSTERID}.${DOMAIN} +short
 dig etd-1.${CLUSTERID}.${DOMAIN} +short
 dig etd-2.${CLUSTERID}.${DOMAIN} +short
-dig _etcd-server-ssl._tcp..${CLUSTERID}.${DOMAIN} +short
+nslookup -type=SRV _etcd-server-ssl._tcp..${CLUSTERID}.${DOMAIN}
 
 dig hostname.${CLUSTERID}.${DOMAIN} -x +short
 
