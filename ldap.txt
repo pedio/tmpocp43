@@ -1,4 +1,7 @@
-ldapsearch -D "xxx" -w Password -p 389 -h 192.168.1.1 -b "OU=Office,DC=xxx,DC=com,DC=hk" -s sub "(&(objectClass=user)(CN=*))" subordinatecount -E pr=10000/noprompt
+# testing purpose - install openldap client on bastion host
+yum install openldap-clients -y
+
+ldapsearch -D "username" -w Password -p 389 -h 192.168.1.1 -b "OU=Office,DC=xxx,DC=com,DC=hk" -s sub "(&(objectClass=user)(CN=*))" subordinatecount -E pr=10000/noprompt
 
 
 cat <<EOF > clusterproviders.yaml
