@@ -1,4 +1,3 @@
-
 #######################################################
 # http server for rhcos 4.3.0 metal.raw.gz and ignition files
 # temporarily for install or add node use (can stop after install)
@@ -77,8 +76,17 @@ EOF
 
 ## setup install and oc lient
 
+## dns check
 
+dig api.${CLUSTERID}.${DOMAIN} +short
+dig api-int.${CLUSTERID}.${DOMAIN} +short
+dig *.apps.${CLUSTERID}.${DOMAIN} +short
+dig etd-0.${CLUSTERID}.${DOMAIN} +short
+dig etd-1.${CLUSTERID}.${DOMAIN} +short
+dig etd-2.${CLUSTERID}.${DOMAIN} +short
+dig _etcd-server-ssl._tcp..${CLUSTERID}.${DOMAIN} +short
 
+dig hostname.${CLUSTERID}.${DOMAIN} -x +short
 
 mkdir ${CLUSTERID}
 cp install-config.yaml ~/${CLUSTERID}/install-config.yaml
