@@ -1,0 +1,44 @@
+oc get machineconfigpools
+
+cat example-chrony.conf | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(''.join(sys.stdin.readlines())))"
+
+server%200.fedora.pool.ntp.org%0Aserver%201.fedora.pool.ntp.org%0Aserver%202.fedora.pool.ntp.org%0Adriftfile%20/var/lib/chrony/drift%0Amakestep%201.0%203%0Artcsync%0Akeyfile%20/etc/chrony.keys%0Aleapsectz%20right/UTC%0Alogdir%20/var/log/chrony%0A
+
+
+cat <<EOF > chrony-enable-worker.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker
+  name: 50-worker-chrony
+spec:
+  config:
+    ignition:
+      version: 2.2.0
+    storage:
+      files:
+      - contents:
+          source: data:,server%200.fedora.pool.ntp.org%0A%0Aserver%201.fedora.pool.ntp.org%0A%0Aserver%202.fedora.pool.ntp.org%0A%0Adriftfile%20/var/lib/chrony/drift%0A%0Amakestep%201.0%203%0A%0Artcsync%0A%0Akeyfile%20/etc/chrony.keys%0A%0Aleapsectz%20right/UTC%0A%0Alogdir%20/var/log/chrony%0A
+        filesystem: root
+        mode: 0644
+        path: /etc/chrony.conf
+EOF
+
+oc get machineconfigs
+
+oc create -f chrony-enable-worker.yaml
+
+
+oc get nodes
+
+oc debug node ocpxxx
+chroot /host
+
+
+chronyc -4 -n sources
+
+
+oc get machineconfigpools 
+
+oc get machineconfig/rendered-worker-xxxx -o yaml
