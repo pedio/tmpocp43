@@ -237,7 +237,7 @@ export KUBECONFIG=/root/ocp43/auth/kubeconfig
 oc get csr
 
 oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
-
+oc get csr -o name | xargs oc adm certificate approve
 
 ### registry
 ##To start the image registry, you must change ManagementState Image Registry Operator configuration from Removed to Managed.
