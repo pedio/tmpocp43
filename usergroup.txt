@@ -1,0 +1,43 @@
+oc adm policy remove-cluster-role-from-group self-provisioner system:authenticated:oauth
+
+## create user groups
+  # Add a group with two users
+  oc adm groups new my-group user1 user2
+
+  # Add user1 and user2 to my-group
+  oc adm groups add-users my-group user1 user2
+
+oc adm groups new ocp-operators operator
+oc adm groups new ocp-developers developer01
+oc adm groups new ocp-devleads devlead01
+oc adm groups new ocp-viewers user01
+
+# add user to group
+oc adm groups add-users ocp-operators john
+oc adm groups add-users ocp-devleads mary
+
+
+## grant authorization to groups
+# ocp-operators - cluster role with edit, self-provisioner
+# ocp-viewers - cluster role with view
+# ocp-developers - project role with edit
+
+oc adm policy add-cluster-role-to-group edit ocp-operators
+oc adm policy add-cluster-role-to-group self-provisioner ocp-operators
+oc adm policy add-cluster-role-to-group view ocp-viewers
+
+oc adm policy add-role-to-group edit ocp-developers -n demo
+oc adm policy add-role-to-group edit ocp-developers -n test01
+oc adm policy add-role-to-group edit ocp-developers -n test02
+
+oc adm policy add-role-to-group admin ocp-devleads -n demo
+oc adm policy add-role-to-group admin ocp-devleads -n test01
+oc adm policy add-role-to-group admin ocp-devleads -n test02
+
+
+## grant authorization to user
+oc adm policy add-role-to-user admin developer01 -n test02
+
+
+oc adm policy add-cluster-role-to-user edit developer01 -n test02
+
