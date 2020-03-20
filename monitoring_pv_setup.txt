@@ -1,5 +1,7 @@
 ## configure monitoring persistent storage
 
+oc -n openshift-monitoring create configmap cluster-monitoring-config
+
 oc -n openshift-monitoring edit configmap cluster-monitoring-config
 
 apiVersion: v1
