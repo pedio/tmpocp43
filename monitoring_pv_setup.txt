@@ -1,0 +1,27 @@
+## configure monitoring persistent storage
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    prometheusK8s:
+      volumeClaimTemplate:
+        metadata:
+          name: prometheusk8spvc
+        spec:
+          storageClassName: thin
+          resources:
+            requests:
+              storage: 100Gi
+    alertmanagerMain:
+      volumeClaimTemplate:
+        metadata:
+          name: alertmanagerpvc
+        spec:
+          storageClassName: thin
+          resources:
+            requests:
+              storage: 20Gi
