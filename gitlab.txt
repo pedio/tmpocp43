@@ -17,7 +17,7 @@ sudo systemctl start postfix
 # download rpm for install
 curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh | sudo bash
 
-sudo EXTERNAL_URL="http://gitlab.cool.xxx.com" yum install -y gitlab-ee
+sudo EXTERNAL_URL="http://gitlab.domain.com" yum install -y gitlab-ee
 
 
 start/stop
@@ -28,7 +28,7 @@ gitlab-ctl restart
 
 
 url:
-https://gitlab.cool.pccwsolutions.com
+https://gitlab.domain.com
 
 
 login:
@@ -42,20 +42,20 @@ root/redhat123
 
 https://docs.gitlab.com/omnibus/settings/nginx.html#enable-https
 
-openssl req -newkey rsa:2048 -nodes -keyout gitlab.cool.pccwsolutions.com.key -x509 -days 365 -out gitlab.cool.pccwsolutions.com.crt
+openssl req -newkey rsa:2048 -nodes -keyout gitlab.domain.com.key -x509 -days 365 -out gitlab.domain.com.crt
 
-openssl x509 -text -noout -in gitlab.cool.pccwsolutions.com.crt
+openssl x509 -text -noout -in gitlab.domain.com.crt
 
 
 sudo mkdir -p /etc/gitlab/ssl
 sudo chmod 700 /etc/gitlab/ssl
-sudo cp gitlab.cool.pccwsolutions.com.key gitlab.cool.pccwsolutions.com.crt /etc/gitlab/ssl/
+sudo cp gitlab.domain.com.key gitlab.domain.com.crt /etc/gitlab/ssl/
 
 
 # to change URL
 vi /etc/gitlab/gitlab.rb
 ...
-external_url="https://gitlab.cool.local"
+external_url="https://gitlab.domain.com"
 
 ...
 nginx['redirect_http_to_https'] = true
