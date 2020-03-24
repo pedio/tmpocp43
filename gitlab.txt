@@ -1,0 +1,73 @@
+
+## install gitlab
+https://about.gitlab.com/installation/#centos-7
+
+sudo yum install -y curl policycoreutils-python openssh-server
+sudo systemctl enable sshd
+sudo systemctl start sshd
+sudo firewall-cmd --permanent --add-service=http
+sudo systemctl reload firewalld
+
+
+sudo yum install postfix
+sudo systemctl enable postfix
+sudo systemctl start postfix
+
+
+# download rpm for install
+curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh | sudo bash
+
+sudo EXTERNAL_URL="http://gitlab.cool.pccwsolutions.com" yum install -y gitlab-ee
+
+
+start/stop
+gitlab-ctl start
+gitlab-ctl stop
+gitlab-ctl restart
+
+
+
+url:
+https://gitlab.cool.pccwsolutions.com
+
+
+login:
+root/redhat123
+
+
+# gitlab log directory
+/var/log/gitlab
+
+
+
+https://docs.gitlab.com/omnibus/settings/nginx.html#enable-https
+
+openssl req -newkey rsa:2048 -nodes -keyout gitlab.cool.pccwsolutions.com.key -x509 -days 365 -out gitlab.cool.pccwsolutions.com.crt
+
+openssl x509 -text -noout -in gitlab.cool.pccwsolutions.com.crt
+
+
+sudo mkdir -p /etc/gitlab/ssl
+sudo chmod 700 /etc/gitlab/ssl
+sudo cp gitlab.cool.pccwsolutions.com.key gitlab.cool.pccwsolutions.com.crt /etc/gitlab/ssl/
+
+
+# to change URL
+vi /etc/gitlab/gitlab.rb
+...
+external_url="https://gitlab.cool.local"
+
+...
+nginx['redirect_http_to_https'] = true
+
+...
+
+nginx['ssl_certificate'] = "/etc/gitlab/ssl/#{node['fqdn']}.crt"
+nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/#{node['fqdn']}.key"
+...
+
+
+gitlab-ctl reconfigure
+
+
+#######################################################################
