@@ -17,7 +17,7 @@ sudo systemctl start postfix
 # download rpm for install
 curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh | sudo bash
 
-sudo EXTERNAL_URL="http://gitlab.cool.pccwsolutions.com" yum install -y gitlab-ee
+sudo EXTERNAL_URL="http://gitlab.cool.xxx.com" yum install -y gitlab-ee
 
 
 start/stop
