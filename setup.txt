@@ -10,7 +10,7 @@ mkdir /var/www/html/{ignition,install}
 wget -P /var/www/html/install/ https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.3/4.3.0/rhcos-4.3.0-x86_64-metal.raw.gz
 
 # rename for easier memorize
-mv /var/www/html/install/rhcos-4.3.0-x86_64-metal.raw.gz /var/www/html/rhcos430metal.raw.gz
+mv /var/www/html/install/rhcos-4.3.0-x86_64-metal.raw.gz /var/www/html/rhcos43.raw.gz
 
 chown -R apache:apache /var/www/html
 restorecon -Rv /var/www/html
