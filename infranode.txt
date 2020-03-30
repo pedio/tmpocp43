@@ -38,5 +38,95 @@ Add the following lines of text the spec section of the object:
 oc patch ingresscontroller/default --type=merge -n openshift-ingress-operator -p '{"spec": {"nodePlacement":{"nodeSelector":{"matchLabels":{"node-role.kubernetes.io/infra": ""}}}}}'
 oc patch ingresscontroller/default --type=merge -n openshift-ingress-operator -p '{"spec": {"replicas": 3}}'
 
+## patch prometheus
+
+cat <<EOF > cluster-monitoring-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |+
+    alertmanagerMain:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    prometheusK8s:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    prometheusOperator:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    grafana:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    k8sPrometheusAdapter:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    kubeStateMetrics:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    telemeterClient:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+EOF
+
+oc create -f cluster-monitoring-configmap.yaml
+
+
+## patch logging
+
+https://docs.openshift.com/container-platform/4.1/machine_management/creating-infrastructure-machinesets.html#infrastructure-moving-logging_creating-infrastructure-machinesets
+
+oc edit ClusterLogging instance
+
+apiVersion: logging.openshift.io/v1
+kind: ClusterLogging
+
+....
+
+spec:
+  collection:
+    logs:
+      fluentd:
+        resources: null
+      rsyslog:
+        resources: null
+      type: fluentd
+  curation:
+    curator:
+      nodeSelector: 
+          node-role.kubernetes.io/infra: ''
+      resources: null
+      schedule: 30 3 * * *
+    type: curator
+  logStore:
+    elasticsearch:
+      nodeCount: 3
+      nodeSelector: 
+          node-role.kubernetes.io/infra: ''
+      redundancyPolicy: SingleRedundancy
+      resources:
+        limits:
+          cpu: 500m
+          memory: 16Gi
+        requests:
+          cpu: 500m
+          memory: 16Gi
+      storage: {}
+    type: elasticsearch
+  managementState: Managed
+  visualization:
+    kibana:
+      nodeSelector: 
+          node-role.kubernetes.io/infra: '' 
+      proxy:
+        resources: null
+      replicas: 1
+      resources: null
+    type: kibana
+
+....
+
 
 
