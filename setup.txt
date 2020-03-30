@@ -169,43 +169,43 @@ disk.EnableUUID    TRUE
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/bootstrap.ign 
 ip=192.168.1.150::192.168.1.1:255.255.255.0:ocp4bstrap.cheers.local:ens192:none nameserver=192.168.1.5
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
 ip=192.168.1.151::192.168.1.1:255.255.255.0:ocp4cp01.cheers.local:ens192:none nameserver=192.168.1.5
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
 ip=192.168.1.152::192.168.1.1:255.255.255.0:ocp4cp02.cheers.local:ens192:none nameserver=192.168.1.5
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
 ip=192.168.1.153::192.168.1.1:255.255.255.0:ocp4cp03.cheers.local:ens192:none nameserver=192.168.1.5
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/worker.ign 
 ip=192.168.1.154::192.168.1.1:255.255.255.0:ocp4worker01.cheers.local:ens192:none nameserver=192.168.1.5
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
 ip=192.168.1.155::192.168.1.1:255.255.255.0:ocp4worker02.cheers.local:ens192:none nameserver=192.168.1.5
 
 coreos.inst=yes
 coreos.inst.install_dev=sda 
-coreos.inst.image_url=http://192.168.1.30/install/rhcos430metal.raw.gz
+coreos.inst.image_url=http://192.168.1.30/install/rhcos43.raw.gz
 coreos.inst.ignition_url=http://192.168.1.30/ignition/master.ign 
 ip=192.168.1.156::192.168.1.1:255.255.255.0:ocp4worker03.cheers.local:ens192:none nameserver=192.168.1.5
 
