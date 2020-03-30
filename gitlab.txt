@@ -1,3 +1,4 @@
+https://docs.gitlab.com/ee/administration/auth/how_to_configure_ldap_gitlab_ce/
 
 ## install gitlab
 https://about.gitlab.com/installation/#centos-7
