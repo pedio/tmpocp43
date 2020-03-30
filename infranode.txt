@@ -1,2 +1,42 @@
+https://access.redhat.com/solutions/4287111
+
+## label the infra nodes
+oc label node infra01 infra02 infra03 node-role.kubernetes.io/infra=""
+
+
+## set scheduler to workers
+oc edit scheduler cluster
+
+apiVersion: config.openshift.io/v1
+kind: Scheduler
+metadata:
+  creationTimestamp: "2020-01-20T05:51:18Z"
+  generation: 1
+  name: cluster
+  resourceVersion: "433"
+  selfLink: /apis/config.openshift.io/v1/schedulers/cluster
+  uid: e12bb187-3b48-11ea-9bb6-005056a5c465
+spec:
+  mastersSchedulable: false
+  defaultNodeSelector: node-role.kubernetes.io/worker=
+  policy:
+    name: ""
+status: {}
+
+## patch image registry to infra nodes
+https://docs.openshift.com/container-platform/4.1/machine_management/creating-infrastructure-machinesets.html#infrastructure-moving-registry_creating-infrastructure-machinesets
+
+oc edit config/cluster
+
+Add the following lines of text the spec section of the object:
+
+  nodeSelector:
+    node-role.kubernetes.io/infra: ""
+
+
+## patch router to infra nodes
 oc patch ingresscontroller/default --type=merge -n openshift-ingress-operator -p '{"spec": {"nodePlacement":{"nodeSelector":{"matchLabels":{"node-role.kubernetes.io/infra": ""}}}}}'
 oc patch ingresscontroller/default --type=merge -n openshift-ingress-operator -p '{"spec": {"replicas": 3}}'
+
+
+
