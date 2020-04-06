@@ -33,7 +33,7 @@ vi /root/.openshift/pull-secret.json
 export DOMAIN=cheers.local
 export CLUSTERID=ocpuat
 export VCENTER_SERVER=192.168.1.9
-export VCENTER_USER="administrator@vsphere.cheers.local"
+export VCENTER_USER="administrator@cheers.local"
 export VCENTER_PASS='P@ssw0rd'
 export VCENTER_DC=Datacenter
 export VCENTER_DS=datastore2
@@ -81,10 +81,10 @@ EOF
 dig api.${CLUSTERID}.${DOMAIN} +short
 dig api-int.${CLUSTERID}.${DOMAIN} +short
 dig *.apps.${CLUSTERID}.${DOMAIN} +short
-dig etd-0.${CLUSTERID}.${DOMAIN} +short
-dig etd-1.${CLUSTERID}.${DOMAIN} +short
-dig etd-2.${CLUSTERID}.${DOMAIN} +short
-nslookup -type=SRV _etcd-server-ssl._tcp..${CLUSTERID}.${DOMAIN}
+dig etcd-0.${CLUSTERID}.${DOMAIN} +short
+dig etcd-1.${CLUSTERID}.${DOMAIN} +short
+dig etcd-2.${CLUSTERID}.${DOMAIN} +short
+nslookup -type=SRV _etcd-server-ssl._tcp.${CLUSTERID}.${DOMAIN}
 
 dig hostname.${CLUSTERID}.${DOMAIN} -x +short
 
