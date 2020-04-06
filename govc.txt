@@ -1,0 +1,8 @@
+export GOVC_URL=IPAddress
+export GOVC_USERNAME="username"
+export GOVC_PASSWORD='passwd'
+export GOVC_INSECURE=true
+
+govc vm.disk.create -vm=ghk-ocpinfra01-UAT -name=/ocp-uat/ocp-uat-tr9xc-elasticsearch01-pvc -ds=vsanDatastore -size 200G
+govc vm.disk.create -vm=ghk-ocpinfra02-UAT -name=/ocp-uat/ocp-uat-tr9xc-elasticsearch02-pvc -ds=vsanDatastore -size 200G
+govc vm.disk.create -vm=ghk-ocpinfra03-UAT -name=/ocp-uat/ocp-uat-tr9xc-elasticsearch03-pvc -ds=vsanDatastore -size 200G
