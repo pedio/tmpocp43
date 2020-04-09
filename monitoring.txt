@@ -1,0 +1,154 @@
+mkdir /root/monitoring
+
+cat << EOF > cluster-monitoring-config.yaml
+apiVersion: v1
+data:
+  config.yaml: |
+    prometheusK8s:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      volumeClaimTemplate:
+        metadata:
+          name: prometheusk8spvc
+        spec:
+          resources:
+            requests:
+              storage: 100Gi
+    alertmanagerMain:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      volumeClaimTemplate:
+        metadata:
+          name: alertmanagerpvc
+        spec:
+          storageClassName: thin
+          resources:
+            requests:
+              storage: 20Gi
+    prometheusOperator:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    grafana:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    k8sPrometheusAdapter:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    kubeStateMetrics:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    telemeterClient:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+EOF
+
+
+
+cat << EOF > alertmanagerpv0.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-mainpv-0
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 20Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: alertmanagerpvc-alertmanager-main-0
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[datasore1] OCPUAT/alertmanager1.vmdk'
+EOF
+
+cat << EOF > alertmanagerpv1.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-mainpv-1
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 20Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: alertmanagerpvc-alertmanager-main-1
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[datasore1] OCPUAT/alertmanager2.vmdk'
+EOF
+
+cat << EOF > alertmanagerpv2.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-mainpv-2
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 20Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: alertmanagerpvc-alertmanager-main-2
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[datasore1] OCPUAT/alertmanager3.vmdk'
+EOF
+
+cat << EOF > prometheus-k8s-0.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheusk8spv-0
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 100Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: prometheusk8spvc-prometheus-k8s-0
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[datasore1] OCPUAT/prometheus1.vmdk'
+EOF
+
+cat << EOF > prometheus-k8s-1.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheusk8spv-1
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 100Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: prometheusk8spvc-prometheus-k8s-1
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[datasore1] OCPUAT/prometheus2.vmdk'
+EOF
