@@ -1,0 +1,16 @@
+
+cat <<EOF > pvregistry.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-storage-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  fc:
+    targetWWNs: ['500a0981891b8dc5', '500a0981991b8dc5'] 
+    lun: 2
+    fsType: ext4
+EOF
