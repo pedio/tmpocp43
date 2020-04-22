@@ -48,12 +48,11 @@ route:
       receiver: team-frontend-page
   - match:
       severity: critical
-    receiver: team-frontend-page
+    receiver: support-team
 receivers:
 - name: default
-  email_configs:
-  - to: reciever@example.com
 - name: watchdog
+- name: support-team
   email_configs:
   - to: reciever@example.com
 - name: team-frontend-page
