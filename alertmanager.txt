@@ -5,6 +5,10 @@ oc -n openshift-monitoring get secret alertmanager-main --template='{{ index .da
 cat <<EOF > alertmanager.yaml
 global:
   resolve_timeout: 5m
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'xxx@example.com'
+  smtp_auth_username: 'xxx@example.com'
+  smtp_auth_password: 'your_email_password'
   
   # The default SMTP From header field.
   [ smtp_from: <tmpl_string> ]
@@ -47,11 +51,9 @@ receivers:
 - name: watchdog
 - name: team-frontend-page
   email_configs:
-  - to: reciever@gmail.com
-    from: sender@gmail.com
-    smarthost: smtp.gmail.com:587
-
-  
+  - to: reciever@example.com
+ 
+ 
   [ - <email_config>, ... ]
 # Whether or not to notify about resolved alerts.
 [ send_resolved: <boolean> | default = false ]
