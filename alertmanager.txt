@@ -47,6 +47,11 @@ receivers:
 - name: watchdog
 - name: team-frontend-page
   email_configs:
+  - to: reciever@gmail.com
+    from: sender@gmail.com
+    smarthost: smtp.gmail.com:587
+
+  
   [ - <email_config>, ... ]
 # Whether or not to notify about resolved alerts.
 [ send_resolved: <boolean> | default = false ]
