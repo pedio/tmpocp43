@@ -48,7 +48,11 @@ route:
       receiver: team-frontend-page
 receivers:
 - name: default
+  email_configs:
+  - to: reciever@example.com
 - name: watchdog
+  email_configs:
+  - to: reciever@example.com
 - name: team-frontend-page
   email_configs:
   - to: reciever@example.com
