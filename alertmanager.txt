@@ -46,6 +46,9 @@ route:
     - match:
         severity: critical
       receiver: team-frontend-page
+  - match:
+      severity: critical
+    receiver: team-frontend-page
 receivers:
 - name: default
   email_configs:
