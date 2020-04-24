@@ -1,0 +1,75 @@
+https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-customizing.html
+
+https://docs.openshift.com/container-platform/4.3/installing/install_config/installing-customizing.html#installation-special-config-crony_installing-customizing
+
+## NTP post OCP install update
+
+oc get machineconfigpools
+
+cat example-chrony.conf | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(''.join(sys.stdin.readlines())))"
+
+server%200.fedora.pool.ntp.org%0Aserver%201.fedora.pool.ntp.org%0Aserver%202.fedora.pool.ntp.org%0Adriftfile%20/var/lib/chrony/drift%0Amakestep%201.0%203%0Artcsync%0Akeyfile%20/etc/chrony.keys%0Aleapsectz%20right/UTC%0Alogdir%20/var/log/chrony%0A
+
+############# time server ###########
+cat << EOF | base64
+server 0.hk.pool.ntp.org iburst
+server 1.hk.pool.ntp.org iburst
+server 2.hk.pool.ntp.org iburst
+server 3.hk.pool.ntp.org iburst
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony
+EOF
+
+c2VydmVyIDAuaGsucG9vbC5udHAub3JnIGlidXJzdApzZXJ2ZXIgMS5oay5wb29sLm50cC5vcmcgaWJ1cnN0CnNlcnZlciAyLmhrLnBvb2wubnRwLm9yZyBpYnVyc3QKc2VydmVyIDMuaGsucG9vbC5udHAub3JnIGlidXJzdApkcmlmdGZpbGUgL3Zhci9saWIvY2hyb255L2RyaWZ0Cm1ha2VzdGVwIDEuMCAzCnJ0Y3N5bmMKbG9nZGlyIC92YXIvbG9nL2Nocm9ueQo=
+
+cat << EOF > ./99_masters-chrony-configuration.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: masters-chrony-configuration
+spec:
+  config:
+    ignition:
+      config: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 2.2.0
+    networkd: {}
+    passwd: {}
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,c2VydmVyIDAuaGsucG9vbC5udHAub3JnIGlidXJzdApzZXJ2ZXIgMS5oay5wb29sLm50cC5vcmcgaWJ1cnN0CnNlcnZlciAyLmhrLnBvb2wubnRwLm9yZyBpYnVyc3QKc2VydmVyIDMuaGsucG9vbC5udHAub3JnIGlidXJzdApkcmlmdGZpbGUgL3Zhci9saWIvY2hyb255L2RyaWZ0Cm1ha2VzdGVwIDEuMCAzCnJ0Y3N5bmMKbG9nZGlyIC92YXIvbG9nL2Nocm9ueQo=
+          verification: {}
+        filesystem: root
+        mode: 420
+        path: /etc/chrony.conf
+  osImageURL: ""
+EOF
+
+oc apply -f ./99_masters-chrony-configuration.yaml
+
+
+
+oc get machineconfigs
+
+oc create -f chrony-enable-worker.yaml
+
+
+oc get nodes
+
+oc debug node ocpxxx
+chroot /host
+
+
+chronyc -4 -n sources
+
+
+oc get machineconfigpools 
+
+oc get machineconfig/rendered-worker-xxxx -o yaml
