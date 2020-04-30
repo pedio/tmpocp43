@@ -1,3 +1,6 @@
+curl -L $URL_TO_BINARY | gunzip > /usr/local/bin/govc
+chmod +x /usr/local/bin/govc
+
 export GOVC_URL=IPAddress
 export GOVC_USERNAME="username"
 export GOVC_PASSWORD='passwd'
