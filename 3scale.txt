@@ -3,3 +3,103 @@ oc create secret docker-registry threescale-registry-auth   --docker-server=regi
  
 # 3 link the secret
 oc secrets link default threescale-registry-auth --for=pull
+
+
+cat <<EOF > 3scale-apimanager.yaml
+apiVersion: apps.3scale.net/v1alpha1
+kind: APIManager
+metadata:
+  name: 3scale-apimanager
+spec:
+  productVersion: "2.7"
+  wildcardDomain: <wildcardDomain>
+  resourceRequirementsEnabled: true
+EOF
+
+govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_backend_redis -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_mysql -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_system_redis -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_system -ds=datastore1 -size 5G
+
+
+cat <<EOF > backend-redis-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: backend-redis-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  vsphereVolume:
+    volumePath: "[datastore1] OCPUAT/3scale_backend_redis.vmdk"
+    fsType: ext4
+  claimRef:
+    namespace: 3scale
+    kind: PersistentVolumeClaim
+    name: backend-redis-storage
+EOF
+
+cat <<EOF > mysql-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  vsphereVolume:
+    volumePath: "[datastore1] OCPUAT/3scale_mysql.vmdk"
+    fsType: ext4
+  claimRef:
+    namespace: 3scale
+    kind: PersistentVolumeClaim
+    name: mysql-storage
+EOF
+
+cat <<EOF > system-redis-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: system-redis-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  vsphereVolume:
+    volumePath: "[datastore1] OCPUAT/3scale_system_redis.vmdk"
+    fsType: ext4
+  claimRef:
+    namespace: 3scale
+    kind: PersistentVolumeClaim
+    name: system-redis-storage
+EOF
+
+cat <<EOF > system-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: system-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  vsphereVolume:
+    volumePath: "[datastore1] OCPUAT/3scale_system.vmdk"
+    fsType: ext4
+  claimRef:
+    namespace: 3scale
+    kind: PersistentVolumeClaim
+    name: system-storage
+EOF
+
+
