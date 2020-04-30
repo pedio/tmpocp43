@@ -112,7 +112,7 @@ oc edit dc/system-app
 
 
 
-oc edit dc/sidekiq
+oc edit dc/system-sidekiq
 ...
     spec:
       affinity:
