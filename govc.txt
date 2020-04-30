@@ -1,4 +1,6 @@
-curl -L $URL_TO_BINARY | gunzip > /usr/local/bin/govc
+https://github.com/vmware/govmomi/releases
+
+curl -L https://github.com/vmware/govmomi/releases/download/v0.22.1/govc_linux_amd64.gz | gunzip > /usr/local/bin/govc
 chmod +x /usr/local/bin/govc
 
 export GOVC_URL=IPAddress
