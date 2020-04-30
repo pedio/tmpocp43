@@ -103,3 +103,27 @@ spec:
 EOF
 
 
+oc edit dc/system-app
+...
+        podaffinity3scale: system
+    spec:
+      containers:
+...
+
+
+
+oc edit dc/sidekiq
+...
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: podaffinity3scale
+                operator: In
+                values:
+                - "system"
+            topologyKey: kubernetes.io/hostname
+...
+
