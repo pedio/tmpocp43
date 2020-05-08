@@ -1,0 +1,22 @@
+cat <<EOF > pvloggingsize.sh
+## require oc login or export KUBECONFIG=/root/ocpuat/auth/kubeconfig
+export PODNAME=$(oc describe pvc logging-pvc01 | grep Mounted | awk '{print $3}')
+oc exec $PODNAME -i -t -- df -h
+EOF
+
+sh pvloggingsize.sh
+Defaulting container name to elasticsearch.
+Use 'oc describe pod/elasticsearch-cdm-fsda4s6u-1-5bf789f664-pkhdf -n openshift-logging' to see all of the containers in this pod.
+Filesystem                            Size  Used Avail Use% Mounted on
+overlay                               200G   15G  185G   8% /
+tmpfs                                  64M     0   64M   0% /dev
+tmpfs                                 7.9G     0  7.9G   0% /sys/fs/cgroup
+shm                                    64M     0   64M   0% /dev/shm
+tmpfs                                 7.9G  6.6M  7.9G   1% /etc/passwd
+/dev/sdh                              148G  106G   42G  72% /elasticsearch/persistent
+/dev/mapper/coreos-luks-root-nocrypt  200G   15G  185G   8% /etc/hosts
+tmpfs                                 7.9G   28K  7.9G   1% /etc/openshift/elasticsearch/secret
+tmpfs                                 7.9G   24K  7.9G   1% /run/secrets/kubernetes.io/serviceaccount
+tmpfs                                 7.9G     0  7.9G   0% /proc/acpi
+tmpfs                                 7.9G     0  7.9G   0% /proc/scsi
+tmpfs                                 7.9G     0  7.9G   0% /sys/firmware
