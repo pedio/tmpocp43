@@ -1,3 +1,7 @@
 oc exec elasticsearch-cdm-fsda4s6u-1-5bf789f664-pkhdf -i -t -- df -h
 
+
+oc set volume deployment/elasticsearch-cdm-8k8z0r1w-1 --add -t pvc --name=elasticsearch-storage --claim-name=logging-pvc01 -c elasticsearch --mount-path=/elasticsearch/persistent --overwrite
+
+
 oc create job test --from=cronjob/curator --dry-run -o yaml | grep -v 'blockOwnerDeletion: true' | oc create -f -
