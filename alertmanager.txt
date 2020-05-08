@@ -1,3 +1,6 @@
+# modify alert values on Customer Resources (CRD) PrometheusRule monitoring.coreos.com instances
+oc get PrometheusRule --all-namespaces=true
+
 # export existing alertmanager.yaml
 oc -n openshift-monitoring get secret alertmanager-main --template='{{ index .data "alertmanager.yaml" }}' |base64 -d > alertmanager.yaml
 
