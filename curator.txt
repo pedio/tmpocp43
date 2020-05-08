@@ -1,1 +1,3 @@
+oc exec elasticsearch-cdm-fsda4s6u-1-5bf789f664-pkhdf -i -t -- df -h
+
 oc create job test --from=cronjob/curator --dry-run -o yaml | grep -v 'blockOwnerDeletion: true' | oc create -f -
