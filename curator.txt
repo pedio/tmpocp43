@@ -1,0 +1,1 @@
+oc create job test --from=cronjob/curator --dry-run -o yaml | grep -v 'blockOwnerDeletion: true' | oc create -f -
