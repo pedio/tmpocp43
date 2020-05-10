@@ -1,5 +1,5 @@
 # 2 create redhat registry secret (need to replace client service account later)
-oc create secret docker-registry threescale-registry-auth   --docker-server=registry.redhat.io   --docker-username="11009103|ocp311153"   --docker-password="eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJlMWZmYmM4OWRhNzk0ZGEzYjQ4MmMxYmQzZWFhMDI2NyJ9.X1hwY0QpMmrpvJHYXsNdYBsTx4xhncsH7IRzTbdqfJdCNCF3ZK8AfLuI2bFJUpazVjf4_iOF3Tqv4EQzmMZiUj3jXRvTiZBfV3twPRmz7DNKUv9iQrpOZa0BlqYBgmnTUlZxWIKHvkB7l6viZLCNF76bsAJdQubsolPdMsHAk9I0kOfCI6JgcXAZjqmULr3QUfVpIsLVVDQVJRD0bRtx6ujhOxmizEjZvWJ5EdRltuUlCXWUnkmW_ZUkpWw9O6axAtuvuvuP6nrJdQTwOreEMx4Q1738TKqyuaWJMe1DcREBd3o2LA5nKYd-EmPHIEC8GA4agcDB6y8AMNAX4tBBMwjmm0uB6sYDM1hhxPETjEWkOlloLhiYppF7vq1SnVX-L84l-g0DeEizaVsooGNscVCLuoXSs0HITiBFOdcVbIbWW7NkywaguePY1G77rAHpLPK2srzqpZdqoisx76847txEwXKKp4s8t0v11i894QwrnFOtl4_TE8JzTYua7fpzI3eVeIzwJ_c06s4FJMsWrmTxFuzPK0gekqo6tanPVJj3VAlDy5IJ2IbYwJaE_nnk7-w8yxHoN--NRhyt1IRU1-YsWQi_h8m0i6ojW7pAnzIXkSMveFl9RiQSLogdUFLt1LzWVumk_KhGxLe5VXYPk1rB61xTMU7zjD9VXzeCWGY"
+oc create secret docker-registry threescale-registry-auth   --docker-server=registry.redhat.io   --docker-username="11009103|ocp311153"   --docker-password="xxxx"
  
 # 3 link the secret
 oc secrets link default threescale-registry-auth --for=pull
