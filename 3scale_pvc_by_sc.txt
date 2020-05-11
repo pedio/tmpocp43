@@ -1,0 +1,80 @@
+cat <<EOF > backend-redis-storage-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 3scale
+  namespace: backend-redis-storage
+  annotations:
+    imageregistry.openshift.io: 'true'
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: thin
+  volumeMode: Filesystem
+EOF
+
+
+cat <<EOF > mysql-storage-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 3scale
+  namespace: mysql-storage
+  annotations:
+    imageregistry.openshift.io: 'true'
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: thin
+  volumeMode: Filesystem
+EOF
+
+cat <<EOF > system-storage-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 3scale
+  namespace: system-storage
+  annotations:
+    imageregistry.openshift.io: 'true'
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: thin
+  volumeMode: Filesystem
+EOF
+
+cat <<EOF > system-redis-storage-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: 3scale
+  namespace: system-redis-storage
+  annotations:
+    imageregistry.openshift.io: 'true'
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: thin
+  volumeMode: Filesystem
+EOF
