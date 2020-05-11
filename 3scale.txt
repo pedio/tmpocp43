@@ -16,10 +16,10 @@ spec:
   resourceRequirementsEnabled: true
 EOF
 
-govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_backend_redis -ds=datastore1 -size 5G
-govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_mysql -ds=datastore1 -size 5G
-govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_system_redis -ds=datastore1 -size 5G
-govc vm.disk.create -vm=ocp4worker01 -name=/OCPUAT/3scale_system -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -thick=true -mode=independent_persistent -name=/OCPUAT/3scale_backend_redis -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -thick=true -mode=independent_persistent -name=/OCPUAT/3scale_mysql -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -thick=true -mode=independent_persistent -name=/OCPUAT/3scale_system_redis -ds=datastore1 -size 5G
+govc vm.disk.create -vm=ocp4worker01 -thick=true -mode=independent_persistent -name=/OCPUAT/3scale_system -ds=datastore1 -size 5G
 
 
 cat <<EOF > backend-redis-pv.yaml
