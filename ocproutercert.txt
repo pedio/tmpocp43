@@ -1,0 +1,2 @@
+oc get secrets/router-certs-default -n openshift-ingress      -o template='{{index .data "tls.crt"}}'      | base64 -d > ocprouter.crt
+oc get secrets/router-certs-default -n openshift-ingress      -o template='{{index .data "tls.key"}}'      | base64 -d > ocprouter.key
