@@ -24,11 +24,10 @@ route:
   - match:
       severity: alert
     repeat_interval: 5m
-    receiver: ocpadmin
+    receiver: default
 receivers:
-- name: default
 - name: watchdog
-- name: ocpadmin
+- name: default
   email_configs:
   - to: ocpadm@example.com
     send_resolved: true
