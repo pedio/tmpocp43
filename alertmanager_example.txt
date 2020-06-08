@@ -22,7 +22,7 @@ route:
     receiver: watchdog
   - match:
       severity: critical
-    repeat_interval: 5m
+    repeat_interval: 12h
     receiver: ocpadmin
 receivers:
 - name: default
