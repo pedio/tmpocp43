@@ -26,6 +26,8 @@ route:
     receiver: ocpadmin
 receivers:
 - name: default
+  email_configs:
+  - to: dba@example.com
 - name: watchdog
 - name: ocpadmin
   email_configs:
