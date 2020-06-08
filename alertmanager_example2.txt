@@ -23,7 +23,7 @@ route:
     receiver: watchdog
   - match:
       severity: alert
-    repeat_interval: 5m
+    repeat_interval: 12h
     receiver: default
 receivers:
 - name: watchdog
