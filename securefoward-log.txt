@@ -1,0 +1,2 @@
+https://docs.openshift.com/container-platform/4.3/logging/config/cluster-logging-external.html#cluster-logging-collector-log-forward-configure_cluster-logging-external
+
