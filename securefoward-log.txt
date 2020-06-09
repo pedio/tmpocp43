@@ -1,2 +1,26 @@
 https://docs.openshift.com/container-platform/4.3/logging/config/cluster-logging-external.html#cluster-logging-collector-log-forward-configure_cluster-logging-external
 
+## config file
+cat <<EOF > secure-forword.conf
+  <server>
+    name externalserver1
+    host 192.168.1.1
+    hostlabel externalserver1.example.com
+    port 24224
+  </server>
+  <server>
+    name externalserver2
+    host externalserver2.example.com
+    port 24224
+  </server>
+  </store>
+EOF
+
+# upload as configmap
+oc create configmap secure-forward --from-file=secure-forward.conf -n openshift-logging
+
+# update CA cert of remote server (optional)
+oc create secret generic secure-forward --from-file=ca-bundle.crt=ca-for-fluentd-receiver/ca.crt --from-literal=shared_key=fluentd-receiver
+
+# restart fluentd pods
+oc delete pod --selector logging-infra=fluentd  -n openshift-logging
