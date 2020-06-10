@@ -1,0 +1,30 @@
+UAT
+Operations log: 15 days
+Other applications log (default) : 30 days
+Storage size 150G
+Used 109G
+/dev/sdh    148G  109G   40G  74% /elasticsearch/persistent
+
+
+DR
+Operations log: 5 weeks
+Other applications log (default) : 30 days
+Storage size 150G
+Used 103G
+/dev/sdh   147G  103G   44G  71% /elasticsearch/persistent
+
+
+Prod
+Operations log: (default) : 30 days
+Other applications log (default) : 30 days
+Storage size 120G
+Used 104G
+/dev/sde                              118G  104G   14G  89% /elasticsearch/persistent
+
+Storage size 120G
+Used 110G
+/dev/sdc                              118G  110G  8.4G  93% /elasticsearch/persistent
+
+Storage size 120G
+Used 118G
+/dev/sde                              118G  100G   18G  86% /elasticsearch/persistent
