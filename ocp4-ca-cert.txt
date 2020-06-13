@@ -7,3 +7,17 @@ oc get secrets/$ROUTERTOKEN -n openshift-ingress -o template='{{index .data "ca.
 
 # verify the router cert
 openssl x509 -in ocpcarouter.crt -noout -text
+
+
+# trust the cert in redhat linux
+# cp /root/certs/<certname>.cer /etc/pki/ca-trust/source/anchors/
+# update-ca-trust extract
+# cd /etc/pki/tls/certs/
+# openssl x509 -in ca-bundle.crt -text -noout
+
+# ubuntu
+# cp /root/certs/<certname>.cer /usr/local/share/ca-certificates/
+# update-ca-trust extract
+# dpkg-reconfigure ca-certificates
+# update-ca-certificates 
+
