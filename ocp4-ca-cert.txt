@@ -1,12 +1,11 @@
 ## Obtain the ocp CA cert and key
 
 # get ocp ca cert
-ROUTERTOKEN=oc get secret -n openshift-ingress | grep router-token | head -n 1 | awk '{print $1}'
-
-oc get secrets/$ROUTERTOKEN -n openshift-ingress -o template='{{index .data "ca.crt"}}' | base64 -d > ocpcarouter.crt
+ROUTERTOKEN=$(oc get secret -n openshift-ingress | grep router-token | head -n 1 | awk '{print $1}')
+oc get secrets/$ROUTERTOKEN -n openshift-ingress -o template='{{index .data "ca.crt"}}' | base64 -d > ocpca.crt
 
 # verify the router cert
-openssl x509 -in ocpcarouter.crt -noout -text
+openssl x509 -in ocpca.crt -noout -text
 
 
 # trust the cert in redhat linux
