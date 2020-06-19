@@ -2,6 +2,8 @@ https://docs.openshift.com/container-platform/4.3/logging/config/cluster-logging
 
 ## config file
 cat <<EOF > secure-forward.conf
+<store>
+  @type forward
   <server>
     name externalserver1
     host 192.168.1.1
@@ -13,7 +15,7 @@ cat <<EOF > secure-forward.conf
     host externalserver2.example.com
     port 24224
   </server>
-  </store>
+</store>
 EOF
 
 # upload as configmap
