@@ -77,6 +77,5 @@ oc get machineconfig/rendered-worker-xxxx -o yaml
 
 
 ########
-nodecount=$(oc get node | wc -l)
-for i in $(oc get node | awk '{print $1}' | tail -${count}); do echo $i;ssh core@$i date; done;
-
+nodecount=$(expr $(oc get node | wc -l) - 1)
+for i in $(oc get node | awk '{print $1}' | tail -$nodecount); do echo $i;ssh core@$i date; done;
