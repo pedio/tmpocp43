@@ -1,0 +1,33 @@
+oc get po --selector component=elasticsearch -o name
+
+ 
+
+## remove elasticsearch red indices
+
+oc project openshift-logging
+
+es_pod1=$(oc get po --selector component=elasticsearch -o name| head -1)
+
+ 
+
+## check
+
+oc exec $es_pod -c elasticsearch -- es_util --query=_cluster/health?pretty=true
+
+oc exec $es_pod -- indices
+
+ 
+
+oc exec $es_pod -- indices | grep -w 'red' | awk '{print $3}' > /root/elasticsearch/tmp/indices.out
+
+ 
+
+//Check the indices look correct
+
+cat /root/elasticsearch/tmp/indices.out
+
+ 
+
+//Delete the list of indices
+
+for i in $(cat /root/elasticsearch/tmp/indices1.out); do oc exec -c elasticsearch $es_pod -- curl -s --key /etc/elasticsearch/secret/admin-key --cert /etc/elasticsearch/secret/admin-cert --cacert /etc/elasticsearch/secret/admin-ca -XDELETE https://localhost:9200/$i ; done
