@@ -1,5 +1,8 @@
 ## Obtain the router cert and key
 
+# get router cert CA
+oc get secrets/router-ca -n openshift-ingress-operator -o template='{{index .data "tls.crt"}}' | base64 -d > ocprouterca.crt
+
 # get router cert
 oc get secrets/router-certs-default -n openshift-ingress -o template='{{index .data "tls.crt"}}' | base64 -d > ocprouter.crt
 
