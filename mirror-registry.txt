@@ -1,0 +1,402 @@
+https://docs.openshift.com/container-platform/4.4/installing/install_config/installing-restricted-networks-preparations.html
+
+### part I
+
+# 1. download podman httpd-tools
+subscription-manager repos \
+    --enable="rhel-7-server-rpms" \
+    --enable="rhel-7-server-extras-rpms"
+yum -y install podman httpd-tools
+
+# 2. create registry path
+mkdir -p /opt/registry/{auth,certs,data}
+
+# 3. generate self-sign key and cert of the mirror registry
+cd /opt/registry/certs
+openssl req -newkey rsa:4096 -nodes -sha256 -keyout domain.key -x509 -days 3650 -out domain.crt  -subj "/C=HK/ST=HongKong/L=HongKong/O=Global Security/OU=IT Department/CN=registry.red.hkg.ho.cncbi"
+
+
+htpasswd -bBc /opt/registry/auth/htpasswd dummy dummy
+
+# 4. start the container registry with podman
+podman run --name mirror-registry -p 5000:5000 -v /opt/registry/data:/var/lib/registry:z -v /opt/registry/auth:/auth:z -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry" -e "REGISTRY_HTTP_SECRET=ALongRandomSecretForRegistry" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd -v /opt/registry/certs:/certs:z -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key docker.io/library/registry:2
+
+# 4a. start the mirror-registry
+podman start mirror-registry
+
+# 5. use curl to test the mirror-registry
+curl -u dummy:dummy -k https://registry.red.hkg.ho.cncbi:5000/v2/_catalog
+
+openssl s_client -showcerts -connect registry.red.hkg.ho.cncbi:5000 -servername registry.red.hkg.ho.cncbi
+
+# 6. trust the generate cert in linux
+cp -r /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
+update-ca-trust
+
+
+curl -u dummy:dummy https://registry.red.hkg.ho.cncbi:5000/v2/_catalog
+
+## testing int coreos may require the firewalld service in bastion host
+
+### part II
+
+# 7. download ocp4.4 related files
+export BUILDNUMBER=$(curl -s https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/release.txt | grep 'Name:' | awk '{print $NF}')
+echo ${BUILDNUMBER}
+
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-client-linux-${BUILDNUMBER}.tar.gz -P /var/www/html/
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-install-linux-${BUILDNUMBER}.tar.gz -P /var/www/html/
+
+
+tar -xzf /var/www/html/openshift-client-linux-${BUILDNUMBER}.tar.gz -C /usr/local/bin/
+tar -xzf /var/www/html/openshift-install-linux-${BUILDNUMBER}.tar.gz -C /usr/local/bin/
+
+
+## PIX install
+wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-metal.x86_64.raw.gz -P /var/www/html/
+
+#wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-${BUILDNUMBER}-installer-initramfs.x86_64.img -P /var/www/html/
+#wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-${BUILDNUMBER}-installer-kernel-.x86_64 -P /var/www/html/
+
+## dowmload ISO
+wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-installer.x86_64.iso
+
+
+# 8. download secret from redhat  https://cloud.redhat.com/openshift/install/pull-secret
+cat /root/.openshift/pull-secret.json | jq .  > /root/.openshift/pull-secret-2.json
+
+
+echo -n 'dummy:dummy' | base64 -w0
+ZHVtbXk6ZHVtbXk=
+
+vi /root/.openshift/pull-secret-2.json
+  "auths": {
+...
+    "registry.red.hkg.ho.cncbi:5000": { 
+      "auth": "ZHVtbXk6ZHVtbXk=", 
+      "email": "you@example.com"
+  },
+...
+
+
+
+9. download the image
+export OCP_RELEASE=4.4.3
+export LOCAL_REGISTRY='registry.red.hkg.ho.cncbi:5000' 
+export LOCAL_REPOSITORY='ocp4/openshift4' 
+export PRODUCT_REPO='openshift-release-dev' 
+export LOCAL_SECRET_JSON='/root/.openshift/pull-secret-2.json' 
+export RELEASE_NAME="ocp-release"
+export ARCHITECTURE=x86_64
+
+
+$ export OCP_RELEASE=<release_version> 
+$ export LOCAL_REGISTRY='<local_registry_host_name>:<local_registry_host_port>' 
+$ export LOCAL_REPOSITORY='<local_repository_name>' 
+$ export PRODUCT_REPO='openshift-release-dev' 
+$ export LOCAL_SECRET_JSON='<path_to_pull_secret>' 
+$ export RELEASE_NAME="ocp-release" 
+$ export ARCHITECTURE=<server_architecture> 
+$ REMOVABLE_MEDIA_PATH=<path>
+
+
+oc adm -a ${LOCAL_SECRET_JSON} release mirror \
+     --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
+     --to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY} \
+     --to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} --dry-run
+
+oc adm -a ${LOCAL_SECRET_JSON} release mirror \
+     --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
+     --to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY} \
+     --to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}
+
+
+## mirror images from external registry to local mirror-registry
+## sometimes may need to redo the mirroring if the cluster cannot find the corresponding images
+
+...
+info: Mirroring 109 images to registry.red.hkg.ho.cncbi:5000/ocp4/openshift4 ...
+registry.red.hkg.ho.cncbi:5000/
+  ocp4/openshift4
+    blobs:
+      quay.io/openshift-release-dev/ocp-release sha256:cf5693de4d3cdd6f352978b87c8f89ead294eff44938598f57a91cf7a02417d2 1.582KiB
+      quay.io/openshift-release-dev/ocp-release sha256:811ff79e21a7fe2b3db306c80283fb4ec58923f63861e8b76ef49f710a20118d 1.601KiB
+...
+
+
+info: Mirroring completed in 8m46.98s (11.07MB/s)
+
+Success
+Update image:  registry.red.hkg.ho.cncbi:5000/ocp4/openshift4:4.4.3-x86_64
+Mirror prefix: registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+
+To use the new mirrored repository to install, add the following section to the install-config.yaml:
+
+imageContentSources:
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+
+To use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:
+
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: example
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+# 10. create openshift-install command
+oc adm -a ${LOCAL_SECRET_JSON} release extract --command=openshift-install "${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}"
+
+
+## 11. upgrade new version
+
+# check latest available version
+curl -s -XGET "https://api.openshift.com/api/upgrades_info/v1/graph?channel=stable-4.4&arch=amd64" --header 'Accept:application/json' |jq '. as $graph | $graph.nodes | map(.version == "4.4.14") | index(true) as $orig | $graph.edges | map(select(.[0] == $orig)[1]) | map($graph.nodes[.])'
+
+
+# mirror target release
+export OCP_RELEASE=4.4.14
+export LOCAL_REGISTRY='registry.red.hkg.ho.cncbi:5000' 
+export LOCAL_REPOSITORY='ocp4/openshift4' 
+export PRODUCT_REPO='openshift-release-dev' 
+export LOCAL_SECRET_JSON='/root/.openshift/pull-secret-2.json' 
+export RELEASE_NAME="ocp-release"
+export ARCHITECTURE=x86_64
+
+oc adm -a ${LOCAL_SECRET_JSON} release mirror \
+     --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
+     --to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY} \
+     --to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}
+...
+info: Mirroring completed in 9m0.08s (10.95MB/s)
+
+Success
+Update image:  registry.red.hkg.ho.cncbi:5000/ocp4/openshift4:4.4.13-x86_64
+Mirror prefix: registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+
+quay.io/openshift-release-dev/ocp-release@sha256:83ac468a022d681475f3016858de4bc917c2ea214bee395f8f4210f4784aafd7
+
+sha256:83ac468a022d681475f3016858de4bc917c2ea214bee395f8f4210f4784aafd7 registry.red.hkg.ho.cncbi:5000/ocp4/openshift4:4.4.14-x86_64
+
+...
+registry.red.hkg.ho.cncbi:5000/ocp4/openshift4:4.4.14-x86_64
+## force to upgrade with mirror registry
+oc adm upgrade --allow-explicit-upgrade --force=true --to-image=registry.red.hkg.ho.cncbi:5000/ocp4/openshift4:4.4.14-x86_64
+
+#######
+## verify cert dates
+openssl x509 -in certs.crt -noout -dates
+openssl s_client -connect registry.red.hkg.ho.cncbi:5000 | openssl x509 -noout -dates
+openssl s_client -connect api-int.red.hkg.ho.cncbi:22623 | openssl x509 -noout -text
+
+
+
+To use the new mirrored repository to install, add the following section to the install-config.yaml:
+
+imageContentSources:
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+
+To use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:
+
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: example
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+
+
+
+export DOMAIN=hkg.ho.cncbi
+export CLUSTERID=red
+export OCP_SSH_KEY=$(cat /root/.ssh/id_rsa.pub)
+export PULL_TARGET=registry.red.hkg.ho.cncbi
+export PULL_AUTH=$(echo -n 'dummy:dummy' | base64 -w0)
+export OCP_SSH_KEY=$(cat /root/.ssh/id_rsa.pub)
+export REGISTRY_CRT=$(cat /opt/registry/certs/domain.crt)
+#export VCENTER_SERVER=192.168.1.9
+#export VCENTER_USER="administrator@vsphere.cheers.local"
+#export VCENTER_PASS='Passw0rd'
+#export VCENTER_DC=Datacenter
+#export VCENTER_DS=datastore2
+
+cat <<EOF > install-config.yaml
+apiVersion: v1
+baseDomain: ${DOMAIN}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 0
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 3
+metadata:
+  name: ${CLUSTERID}
+networking:
+  clusterNetworks:
+  - cidr: 10.254.0.0/16
+    hostPrefix: 24
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  vsphere:
+    vcenter: ${VCENTER_SERVER}
+    username: ${VCENTER_USER}
+    password: ${VCENTER_PASS}
+    datacenter: ${VCENTER_DC}
+    defaultDatastore: ${VCENTER_DS}
+pullSecret: '{"auths":{"${PULL_TARGET}:5000": {"auth": "${PULL_AUTH}","email": "you@example.com"}}}' 
+sshKey: '${OCP_SSH_KEY}' 
+additionalTrustBundle: |
+  ${REGISTRY_CRT}
+imageContentSources:
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+EOF
+
+
+### REGISTRY_CRT need align with two space "  "
+cat <<EOF > install-config.yaml
+apiVersion: v1
+baseDomain: ${DOMAIN}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 0
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 3
+metadata:
+  name: ${CLUSTERID}
+networking:
+  clusterNetworks:
+  - cidr: 10.254.0.0/16
+    hostPrefix: 24
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  none: {}
+pullSecret: '{"auths":{"${PULL_TARGET}:5000": {"auth": "${PULL_AUTH}","email": "you@example.com"}}}' 
+sshKey: '${OCP_SSH_KEY}' 
+additionalTrustBundle: |
+  ${REGISTRY_CRT}
+imageContentSources:
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - registry.red.hkg.ho.cncbi:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+EOF
+
+
+
+
+######################################
+
+oc registry login --to ./pull-secret.json --registry "<registry_host_and_port>" --auth-basic=<username>:<password>
+
+
+
+
+ <EOF > reset.sh 
+#!/bin/bash
+rm -rf /root/red/*
+rm -rf /root/red/.*
+rm -rf /var/www/html/*.ign
+rm ~/.ssh/known_hosts
+EOF
+
+###########################################
+# offline builder images
+
+## mirror images for offline
+oc project openshift
+
+
+-u='11124379|hkbnocp' -p=eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiIxZGI3YzRlMWE1YzA0YjdjOGM3ZjUzZDVhYTcxNjExNyJ9.maTJbk6vVVSYx2bfLEo0mofZRtTGM3XIrWNpw7-LBxezx2aZldzy-GdLJAQ4sIW5X8LGhojM7e07sOx02gKN9AZsamjU0J3anLu6I8v1w_Yi-2gIwbSy4Ra8Ohqjaz48eEkZx7bDNZ09mlMrFa9W9o4rAxrHuLLtrsDV0G_Rza4IGUlJizOsla7UJOe5gc-EvwwGQ9WzH-iHQd4Brs-9IuItN6wkU9ADTkZXHDQwCGz7cPIkIVzy2sLzlJErnOAIClYyUQcA3qpYTNHdW6f_Sy1Zua6_k6AM13tYSv5ywvxfPYztCEnpP_D6y4GizoSaoI43GAaovdRzOcni3aZF_Uz-24VYySoiQ1jORlWxRINAOCrd6xCd8xQtEkRAsmAyM7kmiYr6nTdHvbH65voH7lXuOiYcQl-8nj3h9H_UKC89wn4uwgwURddXv7VV1tyG1t2HxOnWSj2OmxaQPh67k_yrJSuA0fLDa4toRz1aAfEKKXlLbE9dQiKd2a-9OtHon386hK6C6RsD0_mkm82rITlL1IncHffuru_3s-OxkBcJ_XoyZ3cF_3am7pQHH1RJY4piD5dqYLc1eVQRU8jJkMBFDDbMjxUUZIOHT8oFPnNKDb4aODLf1R-WtCdgKp1TEjBToks4OHcgYAX8dHjEAbybHfZDUo-sxW05Ti_FYSs
+
+
+oc create secret generic <pull_secret_name> \
+    --from-file=.dockercfg=<path/to/.dockercfg> \
+    --type=kubernetes.io/dockercfg
+
+
+oc create secret docker-registry cheersregistry \
+    --docker-server=registry.red.hkg.ho.cncbi:5000 \
+    --docker-username=dummy \
+    --docker-password=dummy \
+    --docker-email=nomail@cheers.local
+
+oc secrets link default cheersregistry --for=pull
+
+oc secrets link builder cheersregistry
+
+
+
+for img in $(oc get is -n openshift -o yaml | grep jboss-eap-7 | grep eap72 | grep latest | grep -v tech | grep "name: registry" | sed "s/name: //g"); do echo $img $(echo $img | sed -E "s/registry.redhat.io/regisyry.red.hkg.ho.cncbi\:5000/g");  done
+
+
+registry.redhat.io/jboss-eap-7/eap72-openshift:latest regisry.red.hkg.ho.cncbi:5000/jboss-eap-7/eap72-openshift:latest
+
+oc image mirror -a /root/.openshift/pull-secret.json registry.redhat.io/jboss-eap-7/eap72-openshift:1.0 registry.red.hkg.ho.cncbi:5000/jboss-eap-7/eap72-openshift:1.0
+oc image mirror -a /root/.openshift/pull-secret.json registry.redhat.io/jboss-eap-7/eap72-openshift:latest registry.red.hkg.ho.cncbi:5000/jboss-eap-7/eap72-openshift:latest
+
+## steps
+1: sources host and source credential
+2: target host and target credential
+3: image name and tag
+4: mirror image
+5: update imagestream
+6: update secret link on imagestream project
+
+
+.....error: Import failed (InternalError): Internal error occurred: Get https://registry.red.hkg.ho.cncbi:5000/v2/: x509: certificate signed by unknown authority
+oc import-image eap72-openshift:1.0 --from=registry.red.hkg.ho.cncbi:5000/jboss-eap-7/eap72-openshift:1.0 --confirm --insecure  -n test2
+oc import-image eap72-openshift:latest --from=registry.red.hkg.ho.cncbi:5000/jboss-eap-7/eap72-openshift:latest --confirm --insecure  -n test2
+
+oc new-app eap72-openshift:latest
+
+oc expose svc/eap72-openshift
+
+
+openssl s_client -connect registry.red.hkg.ho.cncbi:5000 | openssl x509 -noout -text
+
+
+
+
+
+
