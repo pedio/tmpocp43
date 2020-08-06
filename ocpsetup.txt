@@ -86,7 +86,7 @@ dig etcd-1.${CLUSTERID}.${DOMAIN} +short
 dig etcd-2.${CLUSTERID}.${DOMAIN} +short
 nslookup -type=SRV _etcd-server-ssl._tcp.${CLUSTERID}.${DOMAIN}
 
-dig hostname.${CLUSTERID}.${DOMAIN} -x +short
+dig -x hostname.${CLUSTERID}.${DOMAIN} +short
 
 mkdir ${CLUSTERID}
 cp install-config.yaml ~/${CLUSTERID}/install-config.yaml
