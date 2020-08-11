@@ -1,0 +1,1371 @@
+
+
+disk.enableUUID=TRUE
+
+
+#########
+
+
+bootstrap.ocp.cheers.local	10.10.0.62
+master01.ocp.cheers.local	10.10.0.63
+master02.ocp.cheers.local	10.10.0.64
+master03.ocp.cheers.local	10.10.0.65
+
+infra01.ocp.cheers.local	10.10.0.66
+infra02.ocp.cheers.local	10.10.0.67
+infra03.ocp.cheers.local	10.10.0.68
+
+worker01.ocp.cheers.local	10.10.0.69
+worker02.ocp.cheers.local	10.10.0.70
+worker03.ocp.cheers.local	10.10.0.71
+
+
+dig api.ocp.cheers.local +short
+dig api-int.ocp.cheers.local +short
+dig *.apps.ocp.cheers.local +short
+
+dig etcd-0.ocp.cheers.local +short
+dig etcd-1.ocp.cheers.local +short
+dig etcd-2.ocp.cheers.local +short
+
+nslookup -type=SRV _etcd-server-ssl._tcp.ocp.cheers.local
+
+dig ocpbastion.ocp.cheers.local +short
+dig bootstrap.ocp.cheers.local +short
+
+dig master01.ocp.cheers.local +short
+dig master02.ocp.cheers.local +short
+dig master03.ocp.cheers.local +short
+
+dig infra01.ocp.cheers.local +short
+dig infra02.ocp.cheers.local +short
+dig infra03.ocp.cheers.local +short
+
+dig worker01.ocp.cheers.local +short
+dig worker02.ocp.cheers.local +short
+dig worker03.ocp.cheers.local +short
+
+
+dig -x 10.10.0.62 +short
+dig -x 10.10.0.63 +short
+dig -x 10.10.0.64 +short
+dig -x 10.10.0.65 +short
+
+dig -x 10.10.0.66 +short
+dig -x 10.10.0.67 +short
+dig -x 10.10.0.68 +short
+
+dig -x 10.10.0.69 +short
+dig -x 10.10.0.70 +short
+dig -x 10.10.0.71 +short
+
+
+dig *.apis.ocp.cheers.local +short
+
+
+
+#######################################################
+# prepare on bastion host
+
+sudo su -
+yum install -y wget git net-tools bind-utils httpd
+yum install -y openldap-clients
+
+
+wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.3/4.3.8/rhcos-4.3.8-x86_64-installer.x86_64.iso
+
+
+mkdir -p /var/www/html/
+
+sudo wget -O /var/www/html/rhcos438.raw.gz https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.3/4.3.8/rhcos-4.3.8-x86_64-metal.x86_64.raw.gz
+
+
+
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.3.13/openshift-install-linux-4.3.13.tar.gz
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.3.13/openshift-client-linux-4.3.13.tar.gz
+
+sudo tar xvf openshift-install-linux-4.3.13.tar.gz -C /usr/local/bin
+sudo tar xvf openshift-client-linux-4.3.13.tar.gz -C /usr/local/bin
+
+
+
+## Download or copy your pull secret. The install program will prompt you for your pull secret during installation
+
+######################################################
+mkdir /root/.openshift/
+
+
+## copy secret from redhat (login redhat )
+## https://cloud.redhat.com/openshift/install/pull-secret
+vi /root/.openshift/pull-secret.json
+
+
+
+########################################################
+ssh-keygen -t rsa -b 4096 
+eval "$(ssh-agent -s)"
+ssh-add /root/.ssh/id_rsa
+
+
+mkdir /root/ocp
+
+openssl s_client -connect api.ocp.cheers.local:6443 | openssl x509 -noout -dates
+
+#########################################################
+## online
+cat <<EOF > install.env
+export DOMAIN=cheers.local
+export CLUSTERID=ocp
+export VCENTER_SERVER="172.22.0.6"
+export VCENTER_USER="USERNAME@vsphere.local"
+export VCENTER_PASS="PASSWORD"
+export VCENTER_DC=T9-Prod
+export VCENTER_DS=Datastore01
+export POD_NETWORK="10.248.0.0/15"
+export SVC_NETWORK="172.30.0.0/16"
+export PULL_SECRET=$(cat /root/.openshift/pull-secret.json)
+export OCP_SSH_KEY=$(cat /root/.ssh/id_rsa.pub)
+EOF
+
+source install.env
+
+
+cat <<EOF > install-config.yaml
+apiVersion: v1
+baseDomain: ${DOMAIN}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 0
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 3
+metadata:
+  name: ${CLUSTERID}
+networking:
+  clusterNetworks:
+  - cidr: ${POD_NETWORK}
+    hostPrefix: 23
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - ${SVC_NETWORK}
+platform:
+  vsphere:
+    vcenter: ${VCENTER_SERVER}
+    username: ${VCENTER_USER}
+    password: ${VCENTER_PASS}
+    datacenter: ${VCENTER_DC}
+    defaultDatastore: ${VCENTER_DS}
+pullSecret: '${PULL_SECRET}'
+sshKey: '${OCP_SSH_KEY}'
+EOF
+
+
+
+
+
+
+
+mkdir ${CLUSTERID}
+cp install-config.yaml ~/${CLUSTERID}/install-config.yaml
+
+cd ~/${CLUSTERID}/
+
+openshift-install create manifests --dir=/root/${CLUSTERID}
+
+sed -i 's/mastersSchedulable: true/mastersSchedulable: false/g' manifests/cluster-scheduler-02-config.yml
+
+
+
+
+cat <<EOF > /root/${CLUSTERID}/manifests/cluster-network-03-config.yml
+apiVersion: operator.openshift.io/v1
+kind: Network
+metadata:
+  name: cluster
+spec:
+  clusterNetwork:
+  - cidr: ${POD_NETWORK}
+    hostPrefix: 23
+  serviceNetwork:
+  - ${SVC_NETWORK}
+  defaultNetwork:
+    type: OpenShiftSDN
+    openshiftSDNConfig:
+      mode: NetworkPolicy
+      mtu: 1450
+      vxlanPort: 6789
+  kubeProxyConfig:
+    iptablesSyncPeriod: 30s
+    proxyArguments:
+      iptables-min-sync-period:
+      - 30s
+EOF
+
+openshift-install create ignition-configs
+
+
+sudo cp bootstrap.ign /var/www/html/
+sudo cp master.ign /var/www/html/
+sudo cp worker.ign /var/www/html/
+
+sudo chown -R apache.apache /var/www/html
+
+sudo systemctl start httpd
+
+##########################################################################################
+
+
+
+### bootstrap HK2VM044
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/bootstrap.ign 
+ip=10.10.0.62::10.10.0.10:255.255.254.0:bootstrap.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+#########################################################################################################
+
+### controlplane1 HK2VM045
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/master.ign 
+ip=10.10.0.63::10.10.0.10:255.255.254.0:master01.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### controlplane2 HK2VM046
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/master.ign 
+ip=10.10.0.64::10.10.0.10:255.255.254.0:master02.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### controlplane3 HK2VM047
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/master.ign 
+ip=10.10.0.65::10.10.0.10:255.255.254.0:master03.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+#########################################################################################################
+
+### infra1 HK2VM048
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/worker.ign 
+ip=10.10.0.66::10.10.0.10:255.255.254.0:infra01.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### infra2 HK2VM049
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/worker.ign 
+ip=10.10.0.67::10.10.0.10:255.255.254.0:infra02.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### infra3 HK2VM050
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/worker.ign 
+ip=10.10.0.68::10.10.0.10:255.255.254.0:infra03.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### worker1 HK2VM051
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/worker.ign 
+ip=10.10.0.69::10.10.0.10:255.255.254.0:worker01.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### worker2 HK2VM052
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/worker.ign 
+ip=10.10.0.70::10.10.0.10:255.255.254.0:worker02.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+### worker3 HK2VM053
+coreos.inst=yes
+coreos.inst.install_dev=sda 
+coreos.inst.image_url=http://10.10.0.61/rhcos438.raw.gz
+coreos.inst.ignition_url=http://10.10.0.61/worker.ign 
+ip=10.10.0.71::10.10.0.10:255.255.254.0:worker03.ocp.cheers.local:ens192:none nameserver=10.10.0.1
+
+
+
+openshift-install wait-for bootstrap-complete --log-level=info
+
+
+[root@ocpbastion ocp]# openshift-install wait-for bootstrap-complete --log-level=info
+INFO Waiting up to 30m0s for the Kubernetes API at https://api.ocp.cheers.local:6443...
+INFO API v1.16.2 up
+INFO Waiting up to 30m0s for bootstrapping to complete...
+INFO It is now safe to remove the bootstrap resources
+
+
+
+echo "export KUBECONFIG=/home/opcusr/ocp/auth/kubeconfig" > /root/prod.env 
+source /root/prod.env
+
+
+# check for pending
+
+[root@ocpbastion ocp]# oc get node
+NAME                             STATUS   ROLES    AGE   VERSION
+worker01.ocp.cheers.local   Ready    worker   9m36s   v1.16.2
+worker02.ocp.cheers.local   Ready    worker   32m     v1.16.2
+worker03.ocp.cheers.local   Ready    worker   29m     v1.16.2
+master01.ocp.cheers.local   Ready    master   14h     v1.16.2
+master02.ocp.cheers.local   Ready    master   14h     v1.16.2
+master03.ocp.cheers.local   Ready    master   14h     v1.16.2
+infra01.ocp.cheers.local    Ready    worker   68m     v1.16.2
+infra02.ocp.cheers.local    Ready    worker   14h     v1.16.2
+infra03.ocp.cheers.local    Ready    worker   14h     v1.16.2
+
+
+
+oc get csr
+[root@ocpbastion ocp]# oc get csr
+NAME        AGE   REQUESTOR                                                                   CONDITION
+csr-57g4h   11m   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-5kf25   11m   system:node:worker02.ocp.cheers.local                           Approved,Issued
+csr-8xwnj   11m   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-9w8wl   11m   system:node:infra01.ocp.cheers.local                          Approved,Issued
+csr-9znnm   11m   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-fgqnc   11m   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-nkh6n   11m   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-qcsmj   11m   system:node:master02.ocp.cheers.local                          Approved,Issued
+csr-tk6gf   11m   system:node:master03.ocp.cheers.local                          Approved,Issued
+csr-v256l   11m   system:node:master01.ocp.cheers.local                          Approved,Issued
+csr-xxvk9   11m   system:node:worker01.ocp.cheers.local                           Approved,Issued
+csr-ztrf9   11m   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+[
+
+oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
+
+oc get csr -o name | xargs oc adm certificate approve
+
+
+watch oc get clusteroperator
+watch oc get co
+
+[root@ocpbastion ~]#  oc get clusteroperator
+[root@ocpbastion ~]# oc get co
+NAME                                       VERSION   AVAILABLE   PROGRESSING   DEGRADED   SINCE
+authentication                             4.3.5     True        False         False      13h
+cloud-credential                           4.3.5     True        False         False      14h
+cluster-autoscaler                         4.3.5     True        False         False      13h
+console                                    4.3.5     True        False         False      13h
+dns                                        4.3.5     True        False         False      13h
+image-registry                             4.3.5     True        False         False      13h
+ingress                                    4.3.5     True        False         False      13h
+insights                                   4.3.5     True        False         False      13h
+kube-apiserver                             4.3.5     True        False         False      13h
+kube-controller-manager                    4.3.5     True        False         False      13h
+kube-scheduler                             4.3.5     True        False         False      13h
+machine-api                                4.3.5     True        False         False      13h
+machine-config                             4.3.5     True        False         False      13h
+marketplace                                4.3.5     True        False         False      13h
+monitoring                                 4.3.5     True        False         False      20m
+network                                    4.3.5     True        False         False      13h
+node-tuning                                4.3.5     True        False         False      13h
+openshift-apiserver                        4.3.5     True        False         False      13h
+openshift-controller-manager               4.3.5     True        False         False      13h
+openshift-samples                          4.3.5     True        False         False      13h
+operator-lifecycle-manager                 4.3.5     True        False         False      13h
+operator-lifecycle-manager-catalog         4.3.5     True        False         False      13h
+operator-lifecycle-manager-packageserver   4.3.5     True        False         False      13h
+service-ca                                 4.3.5     True        False         False      13h
+service-catalog-apiserver                  4.3.5     True        False         False      13h
+service-catalog-controller-manager         4.3.5     True        False         False      13h
+storage                                    4.3.5     True        False         False      13h
+
+
+
+
+[ocpusr@ocpbastion ocp]$ openshift-install wait-for install-complete
+INFO Waiting up to 30m0s for the cluster at https://api.ocp.cheers.local:6443 to initialize... 
+INFO Waiting up to 10m0s for the openshift-console route to be created... 
+INFO Install complete!                            
+INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/root/ocp/auth/kubeconfig' 
+INFO Access the OpenShift web-console here: https://console-openshift-console.apps.ocp.cheers.local 
+INFO Login to the console with user: kubeadmin, password: htiHh-XGT5I-bIr98-UCJbX 
+
+
+## LDAP integration
+
+# testing purpose - install openldap client on bastion host
+yum install openldap-clients -y
+
+
+## LDAP integration steps
+oc create secret generic ldap-secret --from-literal=bindPassword=Support1 -n openshift-config
+
+
+####
+# LDAP
+
+
+## verify haproxy setting
+ldapsearch -D "CN=ocp,OU=IT,OU=HF,OU=cheers.local,DC=cheers.local,DC=com" -w XXXXXX -p 389 -h 10.10.0.5 -b "DC=cheers.local,DC=com" -s sub "(&(objectClass=user)(CN=ocp_group,OU=IT,OU=HF,OU=cheers.local,DC=cheers.local,DC=com))" subordinatecount -E pr=10000/noprompt
+
+
+cat <<EOF > clusterproviders.yaml
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: AD
+    mappingMethod: claim
+    type: LDAP
+    ldap:
+      attributes:
+        id:
+        - sAMAccountName
+        email:
+        - mail
+        name:
+        - sAMAccountName
+        preferredUsername:
+        - sAMAccountName
+      bindDN: "CN=ocp,OU=IT,OU=HF,OU=cheers.local,DC=cheers.local,DC=com"
+      bindPassword:
+        name: ldap-secret
+      insecure: true
+      url: "ldap://10.10.0.5/DC=cheers.local,DC=com?sAMAccountName?sub?(&(objectClass=user)(memberOf=CN=ocp_group,OU=IT,OU=HF,OU=cheers.local,DC=cheers.local,DC=com))"
+EOF
+
+
+oc apply -f clusterproviders.yaml
+
+
+
+# delete default account
+[root@ocpbastion ~]# oc delete secrets kubeadmin -n kube-system
+secret "kubeadmin" deleted
+
+
+oc patch storageclass thin -p '{"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "false"}}}'
+
+
+cat <<EOF > govc.env
+export GOVC_URL=172.22.0.6
+export GOVC_USERNAME="serprodocp@vsphere.local"
+export GOVC_PASSWORD="PASSWORD"
+export GOVC_INSECURE=true
+EOF
+
+source govc.env
+
+
+
+
+vmkfstools -c 200g /vmfs/volumes/Datastore01/ocp/registry.vmdk
+vmkfstools -c 200g /vmfs/volumes/Datastore01/ocp/logging01.vmdk
+vmkfstools -c 200g /vmfs/volumes/Datastore01/ocp/logging02.vmdk
+vmkfstools -c 200g /vmfs/volumes/Datastore01/ocp/logging03.vmdk
+
+vmkfstools -c 200g /vmfs/volumes/Datastore01/ocp/prometheus0.vmdk
+vmkfstools -c 200g /vmfs/volumes/Datastore01/ocp/prometheus1.vmdk
+vmkfstools -c 40g  /vmfs/volumes/Datastore01/ocp/alertmanager0.vmdk
+vmkfstools -c 40g  /vmfs/volumes/Datastore01/ocp/alertmanager1.vmdk
+vmkfstools -c 40g  /vmfs/volumes/Datastore01/ocp/alertmanager2.vmdk
+
+
+govc vm.disk.create -vm=infra01.ocp.cheers.local -name=/ocp/registry -ds=Datastore01 -size 200G
+
+govc vm.disk.create -vm=infra01.ocp.cheers.local -name=/ocp/logging-es-1 -ds=Datastore01 -size 200G
+govc vm.disk.create -vm=infra02.ocp.cheers.local -name=/ocp/logging-es-2 -ds=Datastore01 -size 200G
+govc vm.disk.create -vm=infra03.ocp.cheers.local -name=/ocp/logging-es-3 -ds=Datastore01 -size 200G
+
+govc vm.disk.create -vm=infra01.ocp.cheers.local -name=/ocp/prometheus-k8s-0 -ds=Datastore01 -size 200G
+govc vm.disk.create -vm=infra02.ocp.cheers.local -name=/ocp/prometheus-k8s-1 -ds=Datastore01 -size 200G
+
+govc vm.disk.create -vm=infra01.ocp.cheers.local -name=/ocp/alertmanager-main-0 -ds=Datastore01 -size 40G
+govc vm.disk.create -vm=infra02.ocp.cheers.local -name=/ocp/alertmanager-main-1 -ds=Datastore01 -size 40G
+govc vm.disk.create -vm=infra03.ocp.cheers.local -name=/ocp/alertmanager-main-2 -ds=Datastore01 -size 40G
+
+
+########### configure infra node ###############################
+
+https://access.redhat.com/solutions/4287111
+## label the infra nodes
+oc label node infra01.ocp.cheers.local node-role.kubernetes.io/infra=""
+oc label node infra02.ocp.cheers.local node-role.kubernetes.io/infra=""
+oc label node infra03.ocp.cheers.local node-role.kubernetes.io/infra=""
+
+oc label node infra01.ocp.cheers.local node-role.kubernetes.io/worker-
+oc label node infra02.ocp.cheers.local node-role.kubernetes.io/worker-
+oc label node infra03.ocp.cheers.local node-role.kubernetes.io/worker-
+
+
+
+####################### persistent volume ####################################
+
+cat <<EOF > registry-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-pv
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteMany
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: image-registry-storage
+    namespace: openshift-image-registry
+  persistentVolumeReclaimPolicy: Retain
+  vsphereVolume:
+    volumePath: "[Datastore01] ocp/registry.vmdk"
+    fsType: ext4
+EOF
+
+oc create -f registry-pv.yaml
+
+
+cat <<EOF > registry-pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: image-registry-storage
+  namespace: openshift-image-registry
+  annotations:
+    imageregistry.openshift.io: 'true'
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 200Gi
+  volumeMode: Filesystem
+EOF
+
+oc create -f registry-pvc.yaml
+
+
+### registry
+##To start the image registry, you must change ManagementState Image Registry Operator configuration from Removed to Managed.
+oc edit configs.imageregistry.operator.openshift.io
+
+spec:
+  defaultRoute: false
+  disableRedirect: false
+  httpSecret: 22ce1db6615ff1c3f4f4c65258e79b47fa7e1c23d2279ecac3bf65d98c849c6533ac1380528d3394ca619f190c5497247d3ed772c30177c58e0f1ede5894e65b
+  logging: 2
+  managementState: Removed
+...
+spec:
+  defaultRoute: false
+  disableRedirect: false
+  httpSecret: 22ce1db6615ff1c3f4f4c65258e79b47fa7e1c23d2279ecac3bf65d98c849c6533ac1380528d3394ca619f190c5497247d3ed772c30177c58e0f1ede5894e65b
+  logging: 2
+  managementState: Managed
+...
+storage:
+  pvc:
+    claim: image-registry-storage
+...
+
+
+
+oc edit scheduler cluster
+
+...
+apiVersion: config.openshift.io/v1
+kind: Scheduler
+metadata:
+  creationTimestamp: "2020-04-16T10:35:11Z"
+  generation: 1
+  name: cluster
+  resourceVersion: "435"
+  selfLink: /apis/config.openshift.io/v1/schedulers/cluster
+  uid: 9611f625-3331-4e86-a7bc-0f93f7f5f6d1
+spec:
+  mastersSchedulable: false
+  defaultNodeSelector: node-role.kubernetes.io/worker=
+  policy:
+    name: ""
+status: {}
+
+...
+
+oc edit config/cluster
+...
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/infra: ""
+...
+
+
+## patch router to infra nodes
+oc patch ingresscontroller/default --type=merge -n openshift-ingress-operator -p '{"spec": {"nodePlacement":{"nodeSelector":{"matchLabels":{"node-role.kubernetes.io/infra": ""}}}}}'
+oc patch ingresscontroller/default --type=merge -n openshift-ingress-operator -p '{"spec": {"replicas": 3}}'
+
+
+
+##############################
+# monitoring
+
+mkdir monitoring
+
+
+cat << EOF > alertmanagerpv0.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-mainpv-0
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 40Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: alertmanagerpvc-alertmanager-main-0
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/alertmanager-main-0.vmdk'
+EOF
+
+
+cat << EOF > alertmanagerpv1.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-mainpv-1
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 40Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: alertmanagerpvc-alertmanager-main-1
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/alertmanager-main-1.vmdk'
+EOF
+
+cat << EOF > alertmanagerpv2.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-mainpv-2
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 40Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: alertmanagerpvc-alertmanager-main-2
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/alertmanager-main-2.vmdk'
+EOF
+
+
+cat << EOF > prometheus-k8s-0.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheusk8spv-0
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 200Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: prometheusk8spvc-prometheus-k8s-0
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/prometheus-k8s-0.vmdk'
+EOF
+
+
+cat << EOF > prometheus-k8s-1.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheusk8spv-1
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 200Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: prometheusk8spvc-prometheus-k8s-1
+    namespace: openshift-monitoring
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/prometheus-k8s-1.vmdk'
+EOF
+
+
+cat << EOF > cluster-monitoring-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |+
+    alertmanagerMain:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      volumeClaimTemplate:
+        metadata:
+          name: alertmanagerpvc
+        spec:
+          storageClassName: thin
+          resources:
+            requests:
+              storage: 40Gi
+    prometheusK8s:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      volumeClaimTemplate:
+        metadata:
+          name: prometheusk8spvc
+        spec:
+          storageClassName: thin
+          resources:
+            requests:
+              storage: 200Gi
+    prometheusOperator:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    grafana:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    k8sPrometheusAdapter:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    kubeStateMetrics:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+    telemeterClient:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+EOF
+
+
+
+###################################################
+----------------------------------------------
+## Logging setup
+
+mkdir /root/logging 
+
+cat <<EOF > eo-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-operators-redhat
+  annotations:
+    openshift.io/node-selector: ""
+  labels:
+    openshift.io/cluster-monitoring: "true"
+EOF
+
+
+cat <<EOF > eo-og.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-operators-redhat
+  namespace: openshift-operators-redhat
+spec: {}
+EOF
+
+
+cat <<EOF > eo-sub.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: "elasticsearch-operator"
+  namespace: "openshift-operators-redhat"
+spec:
+  channel: "4.3"
+  installPlanApproval: "Automatic"
+  source: "redhat-operators"
+  sourceNamespace: "openshift-marketplace"
+  name: "elasticsearch-operator"
+EOF
+
+
+cat <<EOF > eo-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-k8s
+  namespace: openshift-operators-redhat
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-k8s
+  namespace: openshift-operators-redhat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prometheus-k8s
+subjects:
+- kind: ServiceAccount
+  name: prometheus-k8s
+  namespace: openshift-operators-redhat
+EOF
+
+
+
+
+cat <<EOF > clo-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-logging
+  annotations:
+    openshift.io/node-selector: ""
+  labels:
+    openshift.io/cluster-monitoring: "true"
+EOF
+
+
+
+cat <<EOF > clo-og.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  targetNamespaces:
+  - openshift-logging
+EOF
+
+
+cat <<EOF > clo-sub.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  channel: "4.3"
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+
+cat <<EOF > clo-instance.yaml
+apiVersion: "logging.openshift.io/v1"
+kind: "ClusterLogging"
+metadata:
+  name: "instance"
+  namespace: "openshift-logging"
+spec:
+  managementState: "Managed"
+  logStore:
+    type: "elasticsearch"
+    elasticsearch:
+      nodeSelector: 
+        node-role.kubernetes.io/infra: ''
+      resources:
+        limits:
+          memory: "16Gi"
+        requests:
+          cpu: "1"
+          memory: "16Gi"
+      nodeCount: 3
+      storage:
+        size: 200G
+      redundancyPolicy: "SingleRedundancy"
+  visualization:
+    type: "kibana"
+    kibana:
+      nodeSelector: 
+        node-role.kubernetes.io/infra: ''
+      replicas: 1
+  curation:
+    type: "curator"
+    curator:
+      nodeSelector: 
+        node-role.kubernetes.io/infra: ''
+      schedule: "30 3 * * *"
+  collection:
+    logs:
+      type: "fluentd"
+      fluentd: {}
+EOF
+
+######## logging pv
+
+cat <<EOF > loggingpv01.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/bound-by-controller: "yes"
+  name: loggingpv01
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 200Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: logging-pvc01
+    namespace: openshift-logging
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/logging-es-1.vmdk'
+EOF
+
+
+cat <<EOF > loggingpv02.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/bound-by-controller: "yes"
+  name: loggingpv02
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 200Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: logging-pvc02
+    namespace: openshift-logging
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/logging-es-2.vmdk'
+EOF
+
+cat <<EOF > loggingpv03.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  annotations:
+    pv.kubernetes.io/bound-by-controller: "yes"
+  name: loggingpv03
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 200Gi
+  claimRef:
+    kind: PersistentVolumeClaim
+    name: logging-pvc03
+    namespace: openshift-logging
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  vsphereVolume:
+    fsType: ext4
+    volumePath: '[Datastore01] ocp/logging-es-3.vmdk'
+EOF
+
+
+
+
+cat <<EOF > loggingpvc01.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  finalizers:
+  - kubernetes.io/pvc-protection
+  name: logging-pvc01
+  namespace: openshift-logging
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  volumeMode: Filesystem
+  volumeName: loggingpv01
+EOF
+
+
+cat <<EOF > loggingpvc02.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  finalizers:
+  - kubernetes.io/pvc-protection
+  name: logging-pvc02
+  namespace: openshift-logging
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  volumeMode: Filesystem
+  volumeName: loggingpv02
+EOF
+
+
+cat <<EOF > loggingpvc03.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  finalizers:
+  - kubernetes.io/pvc-protection
+  name: logging-pvc03
+  namespace: openshift-logging
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  volumeMode: Filesystem
+  volumeName: loggingpv03
+EOF
+
+
+
+oc set volume deployment/elasticsearch-cdm-8k8z0r1w-1 --add -t pvc --name=elasticsearch-storage --claim-name=logging-pvc01 -c elasticsearch --mount-path=/elasticsearch/persistent --overwrite
+oc set volume deployment/elasticsearch-cdm-8k8z0r1w-2 --add -t pvc --name=elasticsearch-storage --claim-name=logging-pvc02 -c elasticsearch --mount-path=/elasticsearch/persistent --overwrite
+oc set volume deployment/elasticsearch-cdm-8k8z0r1w-3 --add -t pvc --name=elasticsearch-storage --claim-name=logging-pvc03 -c elasticsearch --mount-path=/elasticsearch/persistent --overwrite
+
+oc edit ClusterLogging instance
+
+apiVersion: logging.openshift.io/v1
+kind: ClusterLogging
+
+....
+
+spec:
+  collection:
+    logs:
+      fluentd:
+        resources: null
+      rsyslog:
+        resources: null
+      type: fluentd
+  curation:
+    curator:
+      nodeSelector: 
+          node-role.kubernetes.io/infra: ''
+      resources: null
+      schedule: 30 3 * * *
+    type: curator
+  logStore:
+    elasticsearch:
+      nodeCount: 3
+      nodeSelector: 
+          node-role.kubernetes.io/infra: ''
+      redundancyPolicy: SingleRedundancy
+      resources:
+        limits:
+          memory: 8Gi
+        requests:
+          cpu: "1"
+          memory: 8Gi
+      storage: {}
+    type: elasticsearch
+  managementState: Managed
+  visualization:
+    kibana:
+      nodeSelector: 
+          node-role.kubernetes.io/infra: '' 
+      proxy:
+        resources: null
+      replicas: 1
+      resources: null
+    type: kibana
+
+....
+
+
+## configure CPU and Memory
+oc edit ClusterLogging instance
+...
+    type: elasticsearch
+  managementState: Unmanaged
+  visualization:
+    kibana:
+...
+
+edit deployment....
+
+      containers:
+        - resources:
+            limits:
+              memory: 4Gi
+            requests:
+              cpu: '1'
+              memory: 4Gi
+          readinessProbe:
+            exec:
+              command:
+                - /usr/share/elasticsearch/probe/readiness.sh
+            initialDelaySeconds: 10
+            timeoutSeconds: 30
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: /dev/termination-log
+
+
+#################################
+
+
+
+
+############# time server ###########
+cat << EOF | base64
+    server 0.centos.pool.ntp.org iburst
+    server 1.centos.pool.ntp.org iburst
+    server 2.centos.pool.ntp.org iburst
+    server 3.centos.pool.ntp.org iburst
+    driftfile /var/lib/chrony/drift
+    makestep 1.0 3
+    rtcsync
+    logdir /var/log/chrony
+EOF
+
+
+ICAgIHNlcnZlciAwLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBzZXJ2ZXIgMS5jZW50b3MucG9vbC5udHAub3JnIGlidXJzdAogICAgc2VydmVyIDIuY2VudG9zLnBvb2wubnRwLm9yZyBpYnVyc3QKICAgIHNlcnZlciAzLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBkcmlmdGZpbGUgL3Zhci9saWIvY2hyb255L2RyaWZ0CiAgICBtYWtlc3RlcCAxLjAgMwogICAgcnRjc3luYwogICAgbG9nZGlyIC92YXIvbG9nL2Nocm9ueQo=
+
+cat << EOF > ./99_masters-chrony-configuration.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: masters-chrony-configuration
+spec:
+  config:
+    ignition:
+      config: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 2.2.0
+    networkd: {}
+    passwd: {}
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,ICAgIHNlcnZlciAwLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBzZXJ2ZXIgMS5jZW50b3MucG9vbC5udHAub3JnIGlidXJzdAogICAgc2VydmVyIDIuY2VudG9zLnBvb2wubnRwLm9yZyBpYnVyc3QKICAgIHNlcnZlciAzLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBkcmlmdGZpbGUgL3Zhci9saWIvY2hyb255L2RyaWZ0CiAgICBtYWtlc3RlcCAxLjAgMwogICAgcnRjc3luYwogICAgbG9nZGlyIC92YXIvbG9nL2Nocm9ueQo=
+          verification: {}
+        filesystem: root
+        mode: 420
+        path: /etc/chrony.conf
+  osImageURL: ""
+EOF
+
+oc apply -f ./99_masters-chrony-configuration.yaml
+
+
+
+
+
+cat << EOF > ./99_workers-chrony-configuration.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: worker
+  name: workers-chrony-configuration
+spec:
+  config:
+    ignition:
+      config: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 2.2.0
+    networkd: {}
+    passwd: {}
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,ICAgIHNlcnZlciAwLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBzZXJ2ZXIgMS5jZW50b3MucG9vbC5udHAub3JnIGlidXJzdAogICAgc2VydmVyIDIuY2VudG9zLnBvb2wubnRwLm9yZyBpYnVyc3QKICAgIHNlcnZlciAzLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBkcmlmdGZpbGUgL3Zhci9saWIvY2hyb255L2RyaWZ0CiAgICBtYWtlc3RlcCAxLjAgMwogICAgcnRjc3luYwogICAgbG9nZGlyIC92YXIvbG9nL2Nocm9ueQo=
+          verification: {}
+        filesystem: root
+        mode: 420
+        path: /etc/chrony.conf
+  osImageURL: ""
+EOF
+
+oc apply -f ./99_workers-chrony-configuration.yaml
+
+
+
+cat << EOF > ./99_infras-chrony-configuration.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: infra
+  name: infras-chrony-configuration
+spec:
+  config:
+    ignition:
+      config: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 2.2.0
+    networkd: {}
+    passwd: {}
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,ICAgIHNlcnZlciAwLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBzZXJ2ZXIgMS5jZW50b3MucG9vbC5udHAub3JnIGlidXJzdAogICAgc2VydmVyIDIuY2VudG9zLnBvb2wubnRwLm9yZyBpYnVyc3QKICAgIHNlcnZlciAzLmNlbnRvcy5wb29sLm50cC5vcmcgaWJ1cnN0CiAgICBkcmlmdGZpbGUgL3Zhci9saWIvY2hyb255L2RyaWZ0CiAgICBtYWtlc3RlcCAxLjAgMwogICAgcnRjc3luYwogICAgbG9nZGlyIC92YXIvbG9nL2Nocm9ueQo=
+          verification: {}
+        filesystem: root
+        mode: 420
+        path: /etc/chrony.conf
+  osImageURL: ""
+EOF
+
+oc apply -f ./99_infras-chrony-configuration.yaml
+
+
+#######################
+
+
+[ocpusr@ocpbastion ~]$ oc get co
+NAME                                       VERSION   AVAILABLE   PROGRESSING   DEGRADED   SINCE
+authentication                             4.3.13    True        False         False      18h
+cloud-credential                           4.3.13    True        False         False      20h
+cluster-autoscaler                         4.3.13    True        False         False      20h
+console                                    4.3.13    True        False         False      19h
+dns                                        4.3.13    True        False         False      20h
+image-registry                             4.3.13    True        False         False      167m
+ingress                                    4.3.13    True        False         False      50m
+insights                                   4.3.13    True        False         False      20h
+kube-apiserver                             4.3.13    True        False         False      20h
+kube-controller-manager                    4.3.13    True        False         False      20h
+kube-scheduler                             4.3.13    True        False         False      20h
+machine-api                                4.3.13    True        False         False      20h
+machine-config                             4.3.13    True        False         False      20h
+marketplace                                4.3.13    True        False         False      20h
+monitoring                                 4.3.13    True        False         False      37m
+network                                    4.3.13    True        False         False      20h
+node-tuning                                4.3.13    True        False         False      47m
+openshift-apiserver                        4.3.13    True        False         False      20h
+openshift-controller-manager               4.3.13    True        False         False      20h
+openshift-samples                          4.3.13    True        False         False      19h
+operator-lifecycle-manager                 4.3.13    True        False         False      20h
+operator-lifecycle-manager-catalog         4.3.13    True        False         False      20h
+operator-lifecycle-manager-packageserver   4.3.13    True        False         False      3h50m
+service-ca                                 4.3.13    True        False         False      20h
+service-catalog-apiserver                  4.3.13    True        False         False      20h
+service-catalog-controller-manager         4.3.13    True        False         False      20h
+storage                                    4.3.13    True        False         False      20h
+
+
+############################################################################
+
+## disable default OCP login user to create project
+oc adm policy remove-cluster-role-from-group self-provisioner system:authenticated:oauth
+
+
+
+https://docs.openshift.com/container-platform/4.2/applications/projects/configuring-project-creation.html
+
+## remove self-provisioner from authenicated users
+oc patch clusterrolebinding.rbac self-provisioners -p '{"subjects": null}'
+
+oc adm policy remove-cluster-role-from-group self-provisioner system:authenticated:oauth
+
+
+####################################################
+## 1) create alertmanger yaml file
+cat <<EOF > alertmanager.yaml
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: '172.20.77.35:25'
+  smtp_from: 'ocpalert@cheers.local'
+  #smtp_auth_username: 'userxxx'
+  #smtp_auth_password: 'xxx'
+  smtp_require_tls: true
+ 
+route:
+  group_by:
+  - job
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: default
+  routes:
+  - match:
+      alertname: Watchdog
+    repeat_interval: 5m
+    receiver: watchdog
+  - match:
+      severity: alert
+    repeat_interval: 5m
+    receiver: ocpadmin
+receivers:
+- name: default
+- name: watchdog
+- name: ocpadmin
+  email_configs:
+  - to: dannyx@cheers.local
+    send_resolved: true
+    headers: 
+      subject: 'PreProd - {{ template "email.default.subject" . }}'
+    html: 'OCP PreProd - {{ template "email.default.html" . }}'
+    tls_config:
+      insecure_skip_verify: true
+EOF
+
+
+
+## 2) apply alertmanger setting
+oc -n openshift-monitoring create secret generic alertmanager-main --from-file=alertmanager.yaml --dry-run -o=yaml |  oc -n openshift-monitoring replace secret --filename=-
+
+## 3) delete alertmanager pod to reload configuration
+[root@bastion alertmanager]# oc delete po -l alertmanager=main -n openshift-monitoring
+pod "alertmanager-main-0" deleted
+pod "alertmanager-main-1" deleted
+pod "alertmanager-main-2" deleted
+
+## 4) verify the alertmanger pod to see if any error on send alerts
+[root@bastion alertmanager]# oc logs -f alertmanager-main-0 -c alertmanager -n openshift-monitoring
+
+
