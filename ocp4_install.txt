@@ -144,7 +144,7 @@ controlPlane:
 metadata:
   name: ${CLUSTERID}
 networking:
-  clusterNetworks:
+  clusterNetwork:
   - cidr: ${POD_NETWORK}
     hostPrefix: 23
   networkType: OpenShiftSDN
