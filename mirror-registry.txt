@@ -44,22 +44,15 @@ curl -u dummy:dummy https://registry.red.hkg.ho.cncbi:5000/v2/_catalog
 export BUILDNUMBER=$(curl -s https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/release.txt | grep 'Name:' | awk '{print $NF}')
 echo ${BUILDNUMBER}
 
-wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-client-linux-${BUILDNUMBER}.tar.gz -P /var/www/html/
-wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-install-linux-${BUILDNUMBER}.tar.gz -P /var/www/html/
-
-
-tar -xzf /var/www/html/openshift-client-linux-${BUILDNUMBER}.tar.gz -C /usr/local/bin/
-tar -xzf /var/www/html/openshift-install-linux-${BUILDNUMBER}.tar.gz -C /usr/local/bin/
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-client-linux-${BUILDNUMBER}.tar.gz
+tar -xzf openshift-client-linux-${BUILDNUMBER}.tar.gz -C /usr/local/bin/
 
 
 ## PIX install
-wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-metal.x86_64.raw.gz -P /var/www/html/
-
-#wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-${BUILDNUMBER}-installer-initramfs.x86_64.img -P /var/www/html/
-#wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-${BUILDNUMBER}-installer-kernel-.x86_64 -P /var/www/html/
+wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/4.4.17/rhcos-4.4.17-x86_64-metal.x86_64.raw.gz -P /var/www/html/rhcos4417.raw.gz
 
 ## dowmload ISO
-wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-installer.x86_64.iso
+wget https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/4.4.17/rhcos-4.4.17-x86_64-installer.x86_64.iso
 
 
 # 8. download secret from redhat  https://cloud.redhat.com/openshift/install/pull-secret
