@@ -102,7 +102,7 @@ cat <<EOF > ~/ocp43/manifests/cluster-network-03-config.yml
 apiVersion: operator.openshift.io/v1
 kind: Network
 metadata:
-  name: ${CLUSTERID}
+  name: cluster
 spec:
   clusterNetwork:
   - cidr: ${POD_NETWORK}
