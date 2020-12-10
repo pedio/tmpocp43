@@ -342,7 +342,7 @@ csr-ztrf9   11m   system:serviceaccount:openshift-machine-config-operator:node-b
 
 oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
 
-oc get csr -o name | xargs oc adm certificate approve
+oc get csr -no-headers | grep -i pending | awk '{print $1}'| xargs oc adm certificate approve
 
 
 watch oc get clusteroperator
